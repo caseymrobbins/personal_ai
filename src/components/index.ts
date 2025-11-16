@@ -9,3 +9,6 @@ export { ModuleStatusIndicator } from './ModuleStatusIndicator';
 export { DatabasePOC } from './DatabasePOC';
 export { TransformersPOC } from './TransformersPOC';
 export { WebLLMPOC } from './WebLLMPOC';
+
+// Chat components
+export * from './chat';

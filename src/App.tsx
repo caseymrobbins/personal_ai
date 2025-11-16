@@ -1,14 +1,13 @@
 import './App.css'
-import { ChatLayout, DatabasePOC, TransformersPOC, WebLLMPOC } from './components'
+import { ChatLayout, DatabasePOC, TransformersPOC, WebLLMPOC, ChatContainer } from './components'
 import { useState } from 'react'
 import { useChatState, ModuleState } from './store/chat.store'
 
-type POCTab = 'database' | 'transformers' | 'webllm';
+type Tab = 'chat' | 'database' | 'transformers' | 'webllm';
 
 function App() {
   const { setModuleState } = useChatState()
-  const [showPOC, setShowPOC] = useState(true)
-  const [activeTab, setActiveTab] = useState<POCTab>('database')
+  const [activeTab, setActiveTab] = useState<Tab>('chat')
 
   // Demo: Simulate different module states
   const simulateStateTransition = () => {
@@ -30,114 +29,88 @@ function App() {
   return (
     <ChatLayout>
       <div className="app-content">
-        {showPOC ? (
-          <>
-            <div style={{ marginBottom: '2rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-              <button
-                onClick={simulateStateTransition}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  fontSize: '1rem',
-                  backgroundColor: '#667eea',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                }}
-              >
-                🎬 Demo Module States
-              </button>
-              <button
-                onClick={() => setActiveTab('database')}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  fontSize: '1rem',
-                  backgroundColor: activeTab === 'database' ? '#9f7aea' : '#4a5568',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                }}
-              >
-                💾 Database POC
-              </button>
-              <button
-                onClick={() => setActiveTab('transformers')}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  fontSize: '1rem',
-                  backgroundColor: activeTab === 'transformers' ? '#9f7aea' : '#4a5568',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                }}
-              >
-                🤖 Transformers POC
-              </button>
-              <button
-                onClick={() => setActiveTab('webllm')}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  fontSize: '1rem',
-                  backgroundColor: activeTab === 'webllm' ? '#9f7aea' : '#4a5568',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                }}
-              >
-                🚀 WebLLM POC
-              </button>
-              <button
-                onClick={() => setShowPOC(false)}
-                style={{
-                  padding: '0.75rem 1.5rem',
-                  fontSize: '1rem',
-                  backgroundColor: '#48bb78',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  marginLeft: 'auto',
-                }}
-              >
-                Hide POC Tests
-              </button>
-            </div>
-
-            {activeTab === 'database' && <DatabasePOC />}
-            {activeTab === 'transformers' && <TransformersPOC />}
-            {activeTab === 'webllm' && <WebLLMPOC />}
-          </>
-        ) : (
-          <div style={{
-            padding: '2rem',
-            textAlign: 'center',
-            background: 'rgba(255, 255, 255, 0.05)',
-            borderRadius: '12px',
-          }}>
-            <h2>✅ Sprint 0 Foundation Complete</h2>
-            <p style={{ marginTop: '1rem', opacity: 0.8 }}>
-              Core technologies validated and ready for Sprint 1
-            </p>
+        <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setActiveTab('chat')}
+            style={{
+              padding: '0.75rem 1.5rem',
+              fontSize: '1rem',
+              backgroundColor: activeTab === 'chat' ? '#667eea' : '#4a5568',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: activeTab === 'chat' ? '600' : '400',
+            }}
+          >
+            💬 Chat
+          </button>
+          <div style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.2)', margin: '0 0.5rem' }} />
+          <button
+            onClick={() => setActiveTab('database')}
+            style={{
+              padding: '0.75rem 1.5rem',
+              fontSize: '0.9rem',
+              backgroundColor: activeTab === 'database' ? '#9f7aea' : '#4a5568',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+            }}
+          >
+            💾 DB POC
+          </button>
+          <button
+            onClick={() => setActiveTab('transformers')}
+            style={{
+              padding: '0.75rem 1.5rem',
+              fontSize: '0.9rem',
+              backgroundColor: activeTab === 'transformers' ? '#9f7aea' : '#4a5568',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+            }}
+          >
+            🤖 TF POC
+          </button>
+          <button
+            onClick={() => setActiveTab('webllm')}
+            style={{
+              padding: '0.75rem 1.5rem',
+              fontSize: '0.9rem',
+              backgroundColor: activeTab === 'webllm' ? '#9f7aea' : '#4a5568',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+            }}
+          >
+            🚀 LLM POC
+          </button>
+          {activeTab !== 'chat' && (
             <button
-              onClick={() => setShowPOC(true)}
+              onClick={simulateStateTransition}
               style={{
-                marginTop: '1.5rem',
                 padding: '0.75rem 1.5rem',
-                fontSize: '1rem',
-                backgroundColor: '#667eea',
+                fontSize: '0.9rem',
+                backgroundColor: '#f6ad55',
                 color: 'white',
                 border: 'none',
                 borderRadius: '8px',
                 cursor: 'pointer',
+                marginLeft: 'auto',
               }}
             >
-              Show POC Tests
+              🎬 Demo States
             </button>
-          </div>
-        )}
+          )}
+        </div>
+
+        {activeTab === 'chat' && <ChatContainer />}
+        {activeTab === 'database' && <DatabasePOC />}
+        {activeTab === 'transformers' && <TransformersPOC />}
+        {activeTab === 'webllm' && <WebLLMPOC />}
       </div>
     </ChatLayout>
   )
