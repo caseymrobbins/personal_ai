@@ -8,6 +8,7 @@ export { ChatLayout } from './ChatLayout';
 export { ModuleStatusIndicator } from './ModuleStatusIndicator';
 export { TraceInspector } from './TraceInspector';
 export { ARIDashboard } from './ARIDashboard';
+export { AnalyticsDashboard } from './AnalyticsDashboard';
 export { SocraticInterceptor } from './SocraticInterceptor';
 export { SettingsModal } from './SettingsModal';
 export { ConversationSidebar } from './ConversationSidebar';

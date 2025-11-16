@@ -14,6 +14,7 @@ import { useState } from 'react';
 import { useChatState, ModuleState } from '../store/chat.store';
 import { TraceInspector } from './TraceInspector';
 import { ARIDashboard } from './ARIDashboard';
+import { AnalyticsDashboard } from './AnalyticsDashboard';
 import { SettingsModal } from './SettingsModal';
 import './ModuleStatusIndicator.css';
 
@@ -92,6 +93,7 @@ export function ModuleStatusIndicator() {
 
   const [showInspector, setShowInspector] = useState(false);
   const [showARIDashboard, setShowARIDashboard] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const display = getStateDisplay(moduleState, externalProviderName);
 
@@ -149,6 +151,14 @@ export function ModuleStatusIndicator() {
           </button>
 
           <button
+            className="status-action-btn analytics-btn"
+            onClick={() => setShowAnalytics(true)}
+            title="View Analytics Dashboard"
+          >
+            📊 Analytics
+          </button>
+
+          <button
             className="status-action-btn settings-btn"
             onClick={() => setShowSettings(true)}
             title="Open Settings"
@@ -178,6 +188,10 @@ export function ModuleStatusIndicator() {
 
       {showARIDashboard && (
         <ARIDashboard onClose={() => setShowARIDashboard(false)} />
+      )}
+
+      {showAnalytics && (
+        <AnalyticsDashboard onClose={() => setShowAnalytics(false)} />
       )}
 
       {showSettings && (
