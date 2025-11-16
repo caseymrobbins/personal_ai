@@ -1,0 +1,275 @@
+/**
+ * Socratic Interceptor Styles (Sprint 7)
+ */
+
+.socratic-interceptor {
+  background: linear-gradient(135deg, rgba(237, 137, 54, 0.08) 0%, rgba(246, 173, 85, 0.05) 100%);
+  border: 2px solid rgba(237, 137, 54, 0.3);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 1rem 0;
+  box-shadow: 0 4px 12px rgba(237, 137, 54, 0.1);
+}
+
+.socratic-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(237, 137, 54, 0.2);
+}
+
+.socratic-icon {
+  font-size: 2.5rem;
+  flex-shrink: 0;
+}
+
+.socratic-title {
+  flex: 1;
+}
+
+.socratic-title h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #ed8936;
+}
+
+.socratic-badge {
+  display: inline-block;
+  margin-top: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  background: rgba(237, 137, 54, 0.15);
+  border: 1px solid rgba(237, 137, 54, 0.3);
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #ed8936;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.socratic-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.socratic-message {
+  line-height: 1.6;
+}
+
+.socratic-message p {
+  margin: 0.5rem 0;
+}
+
+.socratic-message p:first-child {
+  margin-top: 0;
+}
+
+.socratic-guidance {
+  padding: 1rem;
+  background: rgba(237, 137, 54, 0.08);
+  border-left: 3px solid #ed8936;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-style: italic;
+}
+
+.socratic-guidance strong {
+  font-style: normal;
+  color: #ed8936;
+}
+
+/* ARI Info */
+.socratic-ari-info {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ari-bar-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ari-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.ari-bar-track {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.ari-bar-fill {
+  height: 100%;
+  transition: width 0.3s ease, background-color 0.3s ease;
+  border-radius: 4px;
+}
+
+.ari-value {
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+  opacity: 0.8;
+}
+
+/* Reflection Area */
+.socratic-reflection-area {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.socratic-reflection-area label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.socratic-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  resize: vertical;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.socratic-textarea:focus {
+  outline: none;
+  border-color: rgba(237, 137, 54, 0.5);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.socratic-textarea::placeholder {
+  opacity: 0.5;
+}
+
+/* Actions */
+.socratic-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(237, 137, 54, 0.2);
+}
+
+.socratic-btn {
+  flex: 1;
+  padding: 0.875rem 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.socratic-btn-revise {
+  background: rgba(102, 126, 234, 0.15);
+  border-color: rgba(102, 126, 234, 0.4);
+  color: #667eea;
+}
+
+.socratic-btn-revise:hover {
+  background: rgba(102, 126, 234, 0.25);
+  border-color: rgba(102, 126, 234, 0.6);
+  transform: translateY(-1px);
+}
+
+.socratic-btn-continue {
+  background: rgba(237, 137, 54, 0.15);
+  border-color: rgba(237, 137, 54, 0.4);
+  color: #ed8936;
+}
+
+.socratic-btn-continue:hover {
+  background: rgba(237, 137, 54, 0.25);
+  border-color: rgba(237, 137, 54, 0.6);
+  transform: translateY(-1px);
+}
+
+.socratic-btn:active {
+  transform: translateY(0);
+}
+
+/* Footer */
+.socratic-footer {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(237, 137, 54, 0.15);
+  text-align: center;
+}
+
+.socratic-footer small {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+/* Light Mode */
+@media (prefers-color-scheme: light) {
+  .socratic-interceptor {
+    background: linear-gradient(135deg, rgba(237, 137, 54, 0.05) 0%, rgba(246, 173, 85, 0.03) 100%);
+  }
+
+  .socratic-guidance {
+    background: rgba(237, 137, 54, 0.05);
+  }
+
+  .socratic-ari-info {
+    background: rgba(0, 0, 0, 0.02);
+    border-color: rgba(0, 0, 0, 0.1);
+  }
+
+  .socratic-textarea {
+    background: rgba(0, 0, 0, 0.03);
+    border-color: rgba(0, 0, 0, 0.15);
+  }
+
+  .socratic-textarea:focus {
+    background: rgba(0, 0, 0, 0.05);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .socratic-interceptor {
+    padding: 1rem;
+  }
+
+  .socratic-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .socratic-icon {
+    font-size: 2rem;
+  }
+
+  .socratic-actions {
+    flex-direction: column;
+  }
+
+  .socratic-btn {
+    width: 100%;
+  }
+}

@@ -24,6 +24,7 @@ import { anonymizerService, type ScrubMapping } from '../../services/anonymizer.
 import { governanceService } from '../../services/governance.service';
 import { embeddingsService } from '../../services/embeddings.service';
 import { rdiService } from '../../services/rdi.service';
+import { socraticService } from '../../services/socratic.service';
 import { useChatState } from '../../store/chat.store';
 import type { IChatCompletionRequest } from '../../modules/adapters';
 
@@ -77,6 +78,11 @@ export function ChatContainer() {
 
         // Initialize database and schema
         await initializeDatabase();
+
+        // Enable Socratic Co-pilot Mode by default
+        // (Will be configurable via user preferences in Sprint 9)
+        socraticService.setSocraticMode(true);
+        console.log('[ChatContainer] Socratic Co-pilot Mode enabled');
 
         // Load all conversations
         const allConversations = loadConversations();
@@ -257,6 +263,51 @@ export function ChatContainer() {
 
         // STEP 3: Get conversation history
         const history = dbService.getConversationHistory(currentConversation.id);
+
+        // STEP 3.5: Socratic Co-pilot Mode (if enabled and ARI is low)
+        // Calculate current ARI from recent metrics
+        let currentARI = 0.65; // Default to good ARI
+        try {
+          const recentMetrics = dbService.getRecentGovernanceMetrics(1);
+          if (recentMetrics.length > 0) {
+            currentARI = recentMetrics[0].ariScore;
+          }
+        } catch (error) {
+          console.warn('[ChatContainer] Failed to get recent ARI:', error);
+        }
+
+        // Check if Socratic intervention should occur
+        if (socraticService.shouldIntervene(currentARI)) {
+          console.log(`[ChatContainer] 🎓 Socratic mode triggered (ARI: ${currentARI.toFixed(2)})`);
+
+          // Generate Socratic prompt based on user's query
+          const socraticPrompt = socraticService.generatePrompt(content, currentARI);
+
+          // Add Socratic guidance as a system message (visible to user)
+          const socraticMessage: ChatMessage = {
+            id: `socratic-${Date.now()}`,
+            conversation_id: currentConversation.id,
+            role: 'system',
+            content: socraticService.formatPrompt(socraticPrompt),
+            module_used: 'socratic_copilot',
+            trace_data: JSON.stringify({ ariScore: currentARI, promptType: socraticPrompt.type }),
+            timestamp: Date.now(),
+          };
+
+          // Store in database
+          dbService.addMessage({
+            conversation_id: currentConversation.id,
+            role: 'system',
+            content: socraticMessage.content,
+            module_used: 'socratic_copilot',
+            trace_data: socraticMessage.trace_data,
+          });
+
+          // Show to user
+          setMessages(prev => [...prev, socraticMessage]);
+
+          console.log(`[ChatContainer] Socratic guidance: ${socraticPrompt.type}`);
+        }
 
         // STEP 4: Anonymization for external adapters
         let scrubMappings: ScrubMapping[] = [];
