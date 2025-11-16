@@ -1,0 +1,445 @@
+/**
+ * ARI Dashboard Styles (Sprint 5: Conscience Engine)
+ */
+
+.ari-dashboard-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.ari-dashboard-modal {
+  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  max-width: 900px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.ari-dashboard-header {
+  padding: 2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+}
+
+.ari-dashboard-header h2 {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.ari-dashboard-subtitle {
+  margin: 0.5rem 0 0 0;
+  opacity: 0.7;
+  font-size: 0.95rem;
+}
+
+.ari-close-btn {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ari-close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.ari-loading {
+  padding: 4rem;
+  text-align: center;
+  font-size: 1.1rem;
+  opacity: 0.7;
+}
+
+/* Alert Banner */
+.ari-alert-banner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 2rem;
+  background: rgba(245, 101, 101, 0.15);
+  border-bottom: 1px solid rgba(245, 101, 101, 0.3);
+}
+
+.ari-alert-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.ari-alert-banner strong {
+  color: #fc8181;
+  font-size: 1.1rem;
+}
+
+.ari-alert-banner p {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+/* Main Content */
+.ari-dashboard-content {
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Score Card */
+.ari-score-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+}
+
+.ari-score-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.ari-score-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.ari-score-period {
+  font-size: 0.85rem;
+  opacity: 0.6;
+}
+
+.ari-score-value {
+  font-size: 4rem;
+  font-weight: 700;
+  margin: 0.5rem 0;
+  line-height: 1;
+}
+
+.ari-score-label {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.ari-threshold-indicator {
+  font-size: 0.9rem;
+  opacity: 0.6;
+  margin-top: 0.5rem;
+}
+
+/* Trend Card */
+.ari-trend-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.ari-trend-card h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.ari-trend-content {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.ari-trend-icon {
+  font-size: 3rem;
+}
+
+.ari-trend-info {
+  flex: 1;
+}
+
+.ari-trend-type {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.ari-trend-change {
+  font-size: 0.95rem;
+  opacity: 0.7;
+}
+
+/* Breakdown Card */
+.ari-breakdown-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.ari-breakdown-card h3 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.ari-breakdown-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.ari-metric {
+  display: grid;
+  grid-template-columns: 180px 1fr 60px;
+  align-items: center;
+  gap: 1rem;
+}
+
+.ari-metric-label {
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.ari-metric-bar-container {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.ari-metric-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.ari-metric-value {
+  text-align: right;
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+}
+
+.ari-metric-overall {
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Recommendations Card */
+.ari-recommendations-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.ari-recommendations-card h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.ari-recommendations-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ari-recommendations-list li {
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-left: 3px solid #667eea;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.ari-recommendations-list li:has(:first-child:is('⚠️')) {
+  border-left-color: #f56565;
+  background: rgba(245, 101, 101, 0.1);
+}
+
+/* Stats Card */
+.ari-stats-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.ari-stats-card h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.ari-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.ari-stat {
+  text-align: center;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
+.ari-stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #667eea;
+  margin-bottom: 0.25rem;
+}
+
+.ari-stat-label {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+/* Info Panel */
+.ari-info-panel {
+  padding: 1.5rem 2rem 2rem 2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.ari-info-panel h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.ari-info-panel p {
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  opacity: 0.85;
+}
+
+/* Scrollbar Styling */
+.ari-dashboard-modal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.ari-dashboard-modal::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.ari-dashboard-modal::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.ari-dashboard-modal::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .ari-dashboard-modal {
+    max-width: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .ari-dashboard-header {
+    padding: 1.5rem;
+  }
+
+  .ari-dashboard-header h2 {
+    font-size: 1.5rem;
+    padding-right: 2rem;
+  }
+
+  .ari-dashboard-content {
+    padding: 1.5rem;
+  }
+
+  .ari-score-value {
+    font-size: 3rem;
+  }
+
+  .ari-metric {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .ari-metric-value {
+    text-align: left;
+  }
+}
+
+/* Light Mode */
+@media (prefers-color-scheme: light) {
+  .ari-dashboard-modal {
+    background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);
+  }
+
+  .ari-score-card,
+  .ari-trend-card,
+  .ari-breakdown-card,
+  .ari-recommendations-card,
+  .ari-stats-card {
+    background: rgba(0, 0, 0, 0.02);
+    border-color: rgba(0, 0, 0, 0.1);
+  }
+
+  .ari-close-btn {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.15);
+  }
+
+  .ari-close-btn:hover {
+    background: rgba(0, 0, 0, 0.1);
+  }
+
+  .ari-metric-bar-container {
+    background: rgba(0, 0, 0, 0.1);
+  }
+
+  .ari-stat {
+    background: rgba(0, 0, 0, 0.05);
+  }
+
+  .ari-recommendations-list li {
+    background: rgba(0, 0, 0, 0.03);
+  }
+
+  .ari-info-panel {
+    background: rgba(0, 0, 0, 0.02);
+    border-top-color: rgba(0, 0, 0, 0.1);
+  }
+}

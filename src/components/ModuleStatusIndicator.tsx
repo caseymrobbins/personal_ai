@@ -13,6 +13,7 @@
 import { useState } from 'react';
 import { useChatState, ModuleState } from '../store/chat.store';
 import { TraceInspector } from './TraceInspector';
+import { ARIDashboard } from './ARIDashboard';
 import './ModuleStatusIndicator.css';
 
 /**
@@ -89,6 +90,7 @@ export function ModuleStatusIndicator() {
   } = useChatState();
 
   const [showInspector, setShowInspector] = useState(false);
+  const [showARIDashboard, setShowARIDashboard] = useState(false);
   const display = getStateDisplay(moduleState, externalProviderName);
 
   // Don't show anything when idle
@@ -136,6 +138,14 @@ export function ModuleStatusIndicator() {
             🔍 Inspect
           </button>
 
+          <button
+            className="status-action-btn ari-btn"
+            onClick={() => setShowARIDashboard(true)}
+            title="View Autonomy Retention Index"
+          >
+            🧠 ARI
+          </button>
+
           {canAbort && (
             <button
               className="status-action-btn stop-btn"
@@ -154,6 +164,10 @@ export function ModuleStatusIndicator() {
           providerName={externalProviderName}
           onClose={() => setShowInspector(false)}
         />
+      )}
+
+      {showARIDashboard && (
+        <ARIDashboard onClose={() => setShowARIDashboard(false)} />
       )}
     </>
   );

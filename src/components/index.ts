@@ -7,6 +7,7 @@
 export { ChatLayout } from './ChatLayout';
 export { ModuleStatusIndicator } from './ModuleStatusIndicator';
 export { TraceInspector } from './TraceInspector';
+export { ARIDashboard } from './ARIDashboard';
 export { ConversationSidebar } from './ConversationSidebar';
 export { DatabasePOC } from './DatabasePOC';
 export { TransformersPOC } from './TransformersPOC';

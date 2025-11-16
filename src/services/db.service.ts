@@ -381,6 +381,135 @@ class DatabaseService {
     return results.map(row => row.provider);
   }
 
+  // ============================================================================
+  // GOVERNANCE LOG METHODS (Sprint 5: Conscience Engine)
+  // ============================================================================
+
+  /**
+   * Add governance metrics to the log
+   * @param metrics Governance metrics (ARI)
+   */
+  addGovernanceMetrics(metrics: {
+    timestamp: number;
+    userPromptHash: string;
+    lexicalDensity: number;
+    syntacticComplexity: number;
+  }): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    this.db.run(
+      `INSERT INTO governance_log (timestamp, user_prompt_hash, lexical_density, syntactic_complexity)
+       VALUES (?, ?, ?, ?)`,
+      [
+        metrics.timestamp,
+        metrics.userPromptHash,
+        metrics.lexicalDensity,
+        metrics.syntacticComplexity
+      ]
+    );
+
+    // Auto-save after adding metrics
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Added governance metrics (ARI: ${((metrics.lexicalDensity * 0.6) + (metrics.syntacticComplexity * 0.4)).toFixed(2)})`);
+  }
+
+  /**
+   * Get recent governance metrics for trend analysis
+   * @param limit Number of recent entries to fetch (default: 100)
+   * @returns Array of governance metrics, ordered by timestamp DESC
+   */
+  getRecentGovernanceMetrics(limit: number = 100): Array<{
+    id: number;
+    timestamp: number;
+    userPromptHash: string;
+    lexicalDensity: number;
+    syntacticComplexity: number;
+    ariScore: number;
+  }> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const results = this.query<{
+      id: number;
+      timestamp: number;
+      user_prompt_hash: string;
+      lexical_density: number;
+      syntactic_complexity: number;
+    }>(
+      `SELECT id, timestamp, user_prompt_hash, lexical_density, syntactic_complexity
+       FROM governance_log
+       ORDER BY timestamp DESC
+       LIMIT ?`,
+      [limit]
+    );
+
+    // Calculate ARI score for each entry
+    return results.map(row => ({
+      id: row.id,
+      timestamp: row.timestamp,
+      userPromptHash: row.user_prompt_hash,
+      lexicalDensity: row.lexical_density,
+      syntacticComplexity: row.syntactic_complexity,
+      ariScore: (row.lexical_density * 0.6) + (row.syntactic_complexity * 0.4),
+    }));
+  }
+
+  /**
+   * Get governance statistics
+   * @returns Overall statistics (count, averages, trends)
+   */
+  getGovernanceStats(): {
+    totalEntries: number;
+    avgLexicalDensity: number;
+    avgSyntacticComplexity: number;
+    avgARI: number;
+    oldestEntry: number | null;
+    newestEntry: number | null;
+  } {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const stats = this.query<{
+      count: number;
+      avg_lexical: number;
+      avg_syntactic: number;
+      oldest: number;
+      newest: number;
+    }>(
+      `SELECT
+         COUNT(*) as count,
+         AVG(lexical_density) as avg_lexical,
+         AVG(syntactic_complexity) as avg_syntactic,
+         MIN(timestamp) as oldest,
+         MAX(timestamp) as newest
+       FROM governance_log`
+    );
+
+    if (stats.length === 0 || stats[0].count === 0) {
+      return {
+        totalEntries: 0,
+        avgLexicalDensity: 0,
+        avgSyntacticComplexity: 0,
+        avgARI: 0,
+        oldestEntry: null,
+        newestEntry: null,
+      };
+    }
+
+    const row = stats[0];
+    const avgLexicalDensity = row.avg_lexical || 0;
+    const avgSyntacticComplexity = row.avg_syntactic || 0;
+    const avgARI = (avgLexicalDensity * 0.6) + (avgSyntacticComplexity * 0.4);
+
+    return {
+      totalEntries: row.count,
+      avgLexicalDensity,
+      avgSyntacticComplexity,
+      avgARI,
+      oldestEntry: row.oldest,
+      newestEntry: row.newest,
+    };
+  }
+
   /**
    * Close and cleanup the database
    */

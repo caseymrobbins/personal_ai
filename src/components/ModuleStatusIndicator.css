@@ -151,6 +151,15 @@
   border-color: rgba(102, 126, 234, 0.6);
 }
 
+.ari-btn {
+  border-color: rgba(159, 122, 234, 0.4);
+}
+
+.ari-btn:hover {
+  background: rgba(159, 122, 234, 0.15);
+  border-color: rgba(159, 122, 234, 0.6);
+}
+
 .stop-btn {
   border-color: rgba(239, 68, 68, 0.4);
   color: #fca5a5;

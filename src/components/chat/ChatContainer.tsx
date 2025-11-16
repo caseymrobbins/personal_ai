@@ -21,6 +21,7 @@ import { dbService, type ChatMessage, type Conversation } from '../../services/d
 import { initializeDatabase } from '../../db/init';
 import { adapterRegistry } from '../../modules/adapters';
 import { anonymizerService, type ScrubMapping } from '../../services/anonymizer.service';
+import { governanceService } from '../../services/governance.service';
 import { useChatState } from '../../store/chat.store';
 import type { IChatCompletionRequest } from '../../modules/adapters';
 
@@ -196,10 +197,25 @@ export function ChatContainer() {
 
         setMessages(prev => [...prev, userMessage]);
 
-        // STEP 2: Get conversation history
+        // STEP 2: Track governance metrics (ARI - Autonomy Retention Index)
+        // This measures user autonomy to prevent over-dependence on AI
+        try {
+          const governanceMetrics = await governanceService.analyzePrompt(content);
+          dbService.addGovernanceMetrics({
+            timestamp: governanceMetrics.timestamp,
+            userPromptHash: governanceMetrics.userPromptHash,
+            lexicalDensity: governanceMetrics.lexicalDensity,
+            syntacticComplexity: governanceMetrics.syntacticComplexity,
+          });
+        } catch (error) {
+          console.error('[ChatContainer] Failed to track governance metrics:', error);
+          // Don't fail the entire operation if governance tracking fails
+        }
+
+        // STEP 3: Get conversation history
         const history = dbService.getConversationHistory(currentConversation.id);
 
-        // STEP 3: Anonymization for external adapters
+        // STEP 4: Anonymization for external adapters
         let scrubMappings: ScrubMapping[] = [];
         let messagesToSend = history.map(msg => ({
           role: msg.role as 'system' | 'user' | 'assistant',
@@ -227,7 +243,7 @@ export function ChatContainer() {
           }
         }
 
-        // STEP 4: Query the AI adapter
+        // STEP 5: Query the AI adapter
         const moduleStateDuringQuery = isExternalAdapter ? 'EXTERNAL_API' : 'LOCAL_PROCESSING';
         setModuleState(moduleStateDuringQuery, adapter.name);
 
@@ -254,14 +270,14 @@ export function ChatContainer() {
           setAbortController(null);
         }
 
-        // STEP 5: Extract assistant response
+        // STEP 6: Extract assistant response
         if (!('choices' in response) || response.choices.length === 0) {
           throw new Error('Invalid response from adapter');
         }
 
         let assistantContent = response.choices[0].message.content;
 
-        // STEP 6: Unscrub PII for external adapters
+        // STEP 7: Unscrub PII for external adapters
         if (isExternalAdapter && scrubMappings.length > 0) {
           setModuleState('UNSCRUBBING');
           console.log('[ChatContainer] Restoring PII from response...');
@@ -274,7 +290,7 @@ export function ChatContainer() {
           }
         }
 
-        // STEP 7: Add assistant message to database
+        // STEP 8: Add assistant message to database
         const assistantMessageId = dbService.addMessage({
           conversation_id: currentConversation.id,
           role: 'assistant',
