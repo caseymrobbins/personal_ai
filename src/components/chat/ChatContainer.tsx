@@ -32,7 +32,7 @@ export function ChatContainer() {
     error?: string;
   }>({ ready: false, loading: false, progress: 0 });
 
-  const { selectedAdapterId, setModuleState } = useChatState();
+  const { selectedAdapterId, setModuleState, setAbortController } = useChatState();
 
   // Initialize database on mount
   useEffect(() => {
@@ -207,7 +207,19 @@ export function ChatContainer() {
           temperature: 0.7,
         };
 
-        const response = await adapter.query(request);
+        // Create AbortController for external API calls (enables "Stop" button)
+        let abortController: AbortController | undefined;
+        if (isExternalAdapter) {
+          abortController = new AbortController();
+          setAbortController(abortController);
+        }
+
+        const response = await adapter.query(request, abortController?.signal);
+
+        // Clear AbortController after successful completion
+        if (isExternalAdapter) {
+          setAbortController(null);
+        }
 
         // STEP 5: Extract assistant response
         if (!('choices' in response) || response.choices.length === 0) {
@@ -258,24 +270,42 @@ export function ChatContainer() {
       } catch (error) {
         console.error('[ChatContainer] ❌ Failed to get response:', error);
 
-        // Add error message to UI
-        const errorMessage: ChatMessage = {
-          id: `error-${Date.now()}`,
-          conversation_id: currentConversation.id,
-          role: 'system',
-          content: `Error: ${error instanceof Error ? error.message : 'Failed to get response'}`,
-          module_used: null,
-          trace_data: null,
-          timestamp: Date.now(),
-        };
+        // Check if this was an abort (user clicked "Stop")
+        if (error instanceof Error && error.name === 'AbortError') {
+          console.log('[ChatContainer] Request aborted by user (Humanity Override)');
 
-        setMessages(prev => [...prev, errorMessage]);
+          const abortMessage: ChatMessage = {
+            id: `abort-${Date.now()}`,
+            conversation_id: currentConversation.id,
+            role: 'system',
+            content: '⚠️ Request stopped by user (Humanity Override)',
+            module_used: null,
+            trace_data: null,
+            timestamp: Date.now(),
+          };
+
+          setMessages(prev => [...prev, abortMessage]);
+        } else {
+          // Other errors
+          const errorMessage: ChatMessage = {
+            id: `error-${Date.now()}`,
+            conversation_id: currentConversation.id,
+            role: 'system',
+            content: `Error: ${error instanceof Error ? error.message : 'Failed to get response'}`,
+            module_used: null,
+            trace_data: null,
+            timestamp: Date.now(),
+          };
+
+          setMessages(prev => [...prev, errorMessage]);
+        }
       } finally {
         setIsLoading(false);
         setModuleState('IDLE');
+        setAbortController(null); // Always clear abort controller
       }
     },
-    [currentConversation, modelStatus.ready, selectedAdapterId, setModuleState]
+    [currentConversation, modelStatus.ready, selectedAdapterId, setModuleState, setAbortController]
   );
 
   // Show model loading status
