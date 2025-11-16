@@ -22,6 +22,8 @@ import { initializeDatabase } from '../../db/init';
 import { adapterRegistry } from '../../modules/adapters';
 import { anonymizerService, type ScrubMapping } from '../../services/anonymizer.service';
 import { governanceService } from '../../services/governance.service';
+import { embeddingsService } from '../../services/embeddings.service';
+import { rdiService } from '../../services/rdi.service';
 import { useChatState } from '../../store/chat.store';
 import type { IChatCompletionRequest } from '../../modules/adapters';
 
@@ -197,15 +199,56 @@ export function ChatContainer() {
 
         setMessages(prev => [...prev, userMessage]);
 
-        // STEP 2: Track governance metrics (ARI - Autonomy Retention Index)
-        // This measures user autonomy to prevent over-dependence on AI
+        // STEP 2: Track governance metrics (ARI + RDI)
+        // ARI: Autonomy Retention Index - measures user autonomy
+        // RDI: Reality Drift Index - detects conceptual topic drift
         try {
+          // Calculate ARI metrics
           const governanceMetrics = await governanceService.analyzePrompt(content);
+
+          // Generate embedding for RDI (async, may take a moment on first use)
+          let promptEmbedding: Uint8Array | undefined;
+          let rdiScore = 0;
+
+          try {
+            const embedding = await embeddingsService.embed(content);
+            promptEmbedding = embeddingsService.serializeEmbedding(embedding);
+
+            // Get recent embeddings for drift comparison
+            const recentEmbeddingBlobs = dbService.getRecentEmbeddings(10);
+            const recentEmbeddings = recentEmbeddingBlobs.map(blob =>
+              embeddingsService.deserializeEmbedding(blob)
+            );
+
+            // Calculate RDI
+            const rdiMetrics = rdiService.calculateRDI(embedding, recentEmbeddings);
+            rdiScore = rdiMetrics.rdiScore;
+
+            // Log drift alert if detected
+            if (rdiMetrics.alert) {
+              console.warn('[ChatContainer] 🚨 High topic drift detected:', {
+                rdiScore: rdiMetrics.rdiScore.toFixed(3),
+                driftLevel: rdiMetrics.driftLevel,
+                recommendation: rdiService.getRecommendation(rdiMetrics.rdiScore),
+              });
+            }
+          } catch (embeddingError) {
+            console.warn('[ChatContainer] Failed to generate embedding for RDI:', embeddingError);
+            // Continue without RDI if embeddings fail
+          }
+
+          // Store metrics in database
           dbService.addGovernanceMetrics({
             timestamp: governanceMetrics.timestamp,
             userPromptHash: governanceMetrics.userPromptHash,
             lexicalDensity: governanceMetrics.lexicalDensity,
             syntacticComplexity: governanceMetrics.syntacticComplexity,
+            promptEmbedding,
+          });
+
+          console.log('[ChatContainer] Governance tracked:', {
+            ARI: governanceMetrics.ariScore.toFixed(2),
+            RDI: rdiScore.toFixed(2),
           });
         } catch (error) {
           console.error('[ChatContainer] Failed to track governance metrics:', error);

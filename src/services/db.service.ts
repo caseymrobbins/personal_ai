@@ -387,31 +387,34 @@ class DatabaseService {
 
   /**
    * Add governance metrics to the log
-   * @param metrics Governance metrics (ARI)
+   * @param metrics Governance metrics (ARI + RDI)
    */
   addGovernanceMetrics(metrics: {
     timestamp: number;
     userPromptHash: string;
     lexicalDensity: number;
     syntacticComplexity: number;
+    promptEmbedding?: Uint8Array; // Optional embedding for RDI
   }): void {
     if (!this.db) throw new Error('Database not initialized');
 
     this.db.run(
-      `INSERT INTO governance_log (timestamp, user_prompt_hash, lexical_density, syntactic_complexity)
-       VALUES (?, ?, ?, ?)`,
+      `INSERT INTO governance_log (timestamp, user_prompt_hash, lexical_density, syntactic_complexity, prompt_embedding)
+       VALUES (?, ?, ?, ?, ?)`,
       [
         metrics.timestamp,
         metrics.userPromptHash,
         metrics.lexicalDensity,
-        metrics.syntacticComplexity
+        metrics.syntacticComplexity,
+        metrics.promptEmbedding || null
       ]
     );
 
     // Auto-save after adding metrics
     this.save().catch(err => console.error('[DB] Auto-save failed:', err));
 
-    console.log(`[DB] Added governance metrics (ARI: ${((metrics.lexicalDensity * 0.6) + (metrics.syntacticComplexity * 0.4)).toFixed(2)})`);
+    const ari = ((metrics.lexicalDensity * 0.6) + (metrics.syntacticComplexity * 0.4)).toFixed(2);
+    console.log(`[DB] Added governance metrics (ARI: ${ari}, Embedding: ${metrics.promptEmbedding ? 'yes' : 'no'})`);
   }
 
   /**
@@ -508,6 +511,26 @@ class DatabaseService {
       oldestEntry: row.oldest,
       newestEntry: row.newest,
     };
+  }
+
+  /**
+   * Get recent prompt embeddings for RDI calculation
+   * @param limit Number of recent embeddings to fetch (default: 10)
+   * @returns Array of embeddings (BLOBs), ordered by timestamp DESC
+   */
+  getRecentEmbeddings(limit: number = 10): Uint8Array[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const results = this.query<{ prompt_embedding: Uint8Array }>(
+      `SELECT prompt_embedding
+       FROM governance_log
+       WHERE prompt_embedding IS NOT NULL
+       ORDER BY timestamp DESC
+       LIMIT ?`,
+      [limit]
+    );
+
+    return results.map(row => row.prompt_embedding);
   }
 
   /**
