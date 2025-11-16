@@ -312,6 +312,75 @@ class DatabaseService {
     console.log(`[DB] Deleted conversation: ${id}`);
   }
 
+  // ============================================================================
+  // API KEY METHODS (Sprint 2: TASK-004)
+  // ============================================================================
+
+  /**
+   * Store or update an encrypted API key for a provider
+   * @param provider Provider name (e.g., 'openai', 'anthropic')
+   * @param encryptedKey Encrypted API key (as JSON string)
+   */
+  upsertAPIKey(provider: string, encryptedKey: string): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    // Use INSERT OR REPLACE for upsert behavior
+    this.db.run(
+      'INSERT OR REPLACE INTO api_keys (provider, encrypted_key) VALUES (?, ?)',
+      [provider, encryptedKey]
+    );
+
+    // Auto-save after updating API key
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Stored API key for provider: ${provider}`);
+  }
+
+  /**
+   * Retrieve encrypted API key for a provider
+   * @param provider Provider name
+   * @returns Encrypted key as JSON string, or null if not found
+   */
+  getAPIKey(provider: string): string | null {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const results = this.query<{ encrypted_key: string }>(
+      'SELECT encrypted_key FROM api_keys WHERE provider = ?',
+      [provider]
+    );
+
+    return results.length > 0 ? results[0].encrypted_key : null;
+  }
+
+  /**
+   * Delete API key for a provider
+   * @param provider Provider name
+   */
+  deleteAPIKey(provider: string): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    this.db.run('DELETE FROM api_keys WHERE provider = ?', [provider]);
+
+    // Auto-save after deleting
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Deleted API key for provider: ${provider}`);
+  }
+
+  /**
+   * List all providers with stored API keys
+   * @returns Array of provider names
+   */
+  listAPIKeyProviders(): string[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const results = this.query<{ provider: string }>(
+      'SELECT provider FROM api_keys ORDER BY provider ASC'
+    );
+
+    return results.map(row => row.provider);
+  }
+
   /**
    * Close and cleanup the database
    */

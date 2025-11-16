@@ -44,11 +44,15 @@ interface ChatState {
   // Used for decrypting API keys (Step 3: BYOK)
   sessionMasterPassword: string | null;
 
+  // Currently selected adapter ID (e.g., 'local_guardian', 'openai', 'anthropic')
+  selectedAdapterId: string;
+
   // Actions
   setModuleState: (state: ModuleState, provider?: string) => void;
   setAbortController: (controller: AbortController | null) => void;
   setConversation: (conversationId: string | null) => void;
   setSessionPassword: (password: string | null) => void;
+  setSelectedAdapter: (adapterId: string) => void;
   reset: () => void;
 }
 
@@ -61,6 +65,7 @@ const initialState = {
   currentAbortController: null,
   currentConversationId: null,
   sessionMasterPassword: null,
+  selectedAdapterId: 'local_guardian', // Default to local AI
 };
 
 /**
@@ -107,6 +112,13 @@ export const useChatState = create<ChatState>((set) => ({
    */
   setSessionPassword: (password) =>
     set({ sessionMasterPassword: password }),
+
+  /**
+   * Set the selected AI adapter
+   * @param adapterId The adapter ID (e.g., 'local_guardian', 'openai', 'anthropic')
+   */
+  setSelectedAdapter: (adapterId) =>
+    set({ selectedAdapterId: adapterId }),
 
   /**
    * Reset the store to initial state
