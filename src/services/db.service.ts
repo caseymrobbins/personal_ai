@@ -11,6 +11,7 @@
  */
 
 import initSqlJs, { Database } from 'sql.js';
+import { storageService } from './storage.service';
 
 /**
  * Conversation interface
@@ -50,19 +51,29 @@ class DatabaseService {
     try {
       console.log('[DB] Initializing WASM-SQLite...');
 
+      // Initialize storage service first
+      await storageService.initialize();
+
       // Initialize sql.js
       const SQL = await initSqlJs({
         locateFile: (file) => `https://sql.js.org/dist/${file}`
       });
 
-      // Check if we have a saved database in localStorage
-      const savedDb = localStorage.getItem('sml_guardian_db');
+      // Try to load from IndexedDB
+      let savedData = await storageService.loadDatabase();
 
-      if (savedDb) {
+      // If not in IndexedDB, try migrating from localStorage
+      if (!savedData) {
+        const migrated = await storageService.migrateFromLocalStorage();
+        if (migrated) {
+          savedData = await storageService.loadDatabase();
+        }
+      }
+
+      if (savedData) {
         // Restore from saved database
-        const uint8Array = new Uint8Array(JSON.parse(savedDb));
-        this.db = new SQL.Database(uint8Array);
-        console.log('[DB] Restored database from localStorage');
+        this.db = new SQL.Database(savedData);
+        console.log('[DB] Restored database from IndexedDB');
       } else {
         // Create new database
         this.db = new SQL.Database();
@@ -106,16 +117,15 @@ class DatabaseService {
   }
 
   /**
-   * Save the database to localStorage (persistence)
+   * Save the database to IndexedDB (persistence)
    */
   async save(): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
 
     try {
       const data = this.db.export();
-      const buffer = JSON.stringify(Array.from(data));
-      localStorage.setItem('sml_guardian_db', buffer);
-      console.log('[DB] ✅ Database saved to localStorage');
+      await storageService.saveDatabase(data);
+      console.log('[DB] ✅ Database saved to IndexedDB');
     } catch (error) {
       console.error('[DB] ❌ Failed to save:', error);
       throw error;
