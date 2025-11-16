@@ -285,6 +285,20 @@ class DatabaseService {
   }
 
   /**
+   * Get all messages across all conversations
+   * @returns Array of all messages, ordered chronologically
+   */
+  getAllMessages(): ChatMessage[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    return this.query<ChatMessage>(
+      `SELECT id, conversation_id, role, content, module_used, trace_data, timestamp
+       FROM chat_messages
+       ORDER BY timestamp ASC`
+    );
+  }
+
+  /**
    * Update conversation title
    * @param id Conversation ID
    * @param title New title
