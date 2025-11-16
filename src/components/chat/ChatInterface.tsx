@@ -8,6 +8,7 @@
 import { useEffect, useRef } from 'react';
 import { MessageBubble } from './MessageBubble';
 import { MessageInput } from './MessageInput';
+import { ModuleStatusIndicator } from '../ModuleStatusIndicator';
 import type { ChatMessage } from '../../services/db.service';
 import './ChatInterface.css';
 
@@ -33,6 +34,8 @@ export function ChatInterface({
 
   return (
     <div className="chat-interface">
+      <ModuleStatusIndicator />
+
       <div className="messages-container">
         {messages.length === 0 ? (
           <div className="empty-state">

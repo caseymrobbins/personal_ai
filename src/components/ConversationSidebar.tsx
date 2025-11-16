@@ -1,0 +1,360 @@
+/**
+ * Conversation Sidebar Component (Sprint 4 + Sprint 11)
+ *
+ * Provides conversation management:
+ * - List all conversations
+ * - Create new conversation
+ * - Switch between conversations
+ * - Rename conversations
+ * - Delete conversations
+ * - Export conversations
+ * - Semantic search across conversations (Sprint 11)
+ */
+
+import { useState } from 'react';
+import { dbService, type Conversation } from '../services/db.service';
+import { searchService, type SearchResult } from '../services/search.service';
+import { SearchResults } from './SearchResults';
+import './ConversationSidebar.css';
+
+export interface ConversationSidebarProps {
+  conversations: Conversation[];
+  currentConversationId: string | null;
+  onConversationSelect: (conversation: Conversation) => void;
+  onConversationCreate: () => void;
+  onConversationUpdate: () => void;
+  isOpen: boolean;
+  onToggle: () => void;
+}
+
+export function ConversationSidebar({
+  conversations,
+  currentConversationId,
+  onConversationSelect,
+  onConversationCreate,
+  onConversationUpdate,
+  isOpen,
+  onToggle,
+}: ConversationSidebarProps) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+
+  const handleNewConversation = () => {
+    onConversationCreate();
+  };
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim() || searchQuery.trim().length < 3) {
+      return;
+    }
+
+    setIsSearching(true);
+    setShowSearchResults(true);
+
+    try {
+      const results = await searchService.search(searchQuery.trim(), {
+        maxResults: 30,
+        minSimilarity: 0.3,
+      });
+      setSearchResults(results);
+    } catch (error) {
+      console.error('[ConversationSidebar] Search failed:', error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    } else if (e.key === 'Escape') {
+      setSearchQuery('');
+      setShowSearchResults(false);
+    }
+  };
+
+  const handleSearchResultClick = (result: SearchResult) => {
+    // Find and select the conversation
+    const conversation = conversations.find(c => c.id === result.conversationId);
+    if (conversation) {
+      onConversationSelect(conversation);
+      setShowSearchResults(false);
+      setSearchQuery('');
+    }
+  };
+
+  const handleCloseSearch = () => {
+    setShowSearchResults(false);
+    setSearchQuery('');
+  };
+
+  const handleRename = (conversation: Conversation) => {
+    setEditingId(conversation.id);
+    setEditingTitle(conversation.title);
+  };
+
+  const handleSaveRename = (id: string) => {
+    if (editingTitle.trim()) {
+      dbService.updateConversationTitle(id, editingTitle.trim());
+      onConversationUpdate();
+    }
+    setEditingId(null);
+    setEditingTitle('');
+  };
+
+  const handleCancelRename = () => {
+    setEditingId(null);
+    setEditingTitle('');
+  };
+
+  const handleDelete = (conversation: Conversation) => {
+    if (confirm(`Delete conversation "${conversation.title}"?\n\nThis cannot be undone.`)) {
+      dbService.deleteConversation(conversation.id);
+      onConversationUpdate();
+    }
+  };
+
+  const handleExport = (conversation: Conversation) => {
+    // Get all messages for this conversation
+    const messages = dbService.getConversationHistory(conversation.id);
+
+    // Create export object
+    const exportData = {
+      conversation: {
+        id: conversation.id,
+        title: conversation.title,
+        created_at: conversation.created_at,
+        created_date: new Date(conversation.created_at).toISOString(),
+      },
+      messages: messages.map(msg => ({
+        id: msg.id,
+        role: msg.role,
+        content: msg.content,
+        module_used: msg.module_used,
+        timestamp: msg.timestamp,
+        timestamp_date: new Date(msg.timestamp).toISOString(),
+      })),
+      exported_at: new Date().toISOString(),
+      exported_by: 'SML Guardian',
+    };
+
+    // Create blob and download
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `conversation-${conversation.title.replace(/[^a-z0-9]/gi, '-')}-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportAll = () => {
+    if (!confirm('Export all conversations?\n\nThis will create a JSON file with all your conversations and messages.')) {
+      return;
+    }
+
+    // Get all conversations and their messages
+    const allConversations = conversations.map(conv => ({
+      conversation: {
+        id: conv.id,
+        title: conv.title,
+        created_at: conv.created_at,
+        created_date: new Date(conv.created_at).toISOString(),
+      },
+      messages: dbService.getConversationHistory(conv.id).map(msg => ({
+        id: msg.id,
+        role: msg.role,
+        content: msg.content,
+        module_used: msg.module_used,
+        timestamp: msg.timestamp,
+        timestamp_date: new Date(msg.timestamp).toISOString(),
+      })),
+    }));
+
+    const exportData = {
+      conversations: allConversations,
+      total_conversations: allConversations.length,
+      total_messages: allConversations.reduce((sum, c) => sum + c.messages.length, 0),
+      exported_at: new Date().toISOString(),
+      exported_by: 'SML Guardian',
+    };
+
+    // Create blob and download
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sml-guardian-conversations-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const formatDate = (timestamp: number) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+
+    return date.toLocaleDateString();
+  };
+
+  return (
+    <>
+      {/* Toggle button for mobile */}
+      <button className="sidebar-toggle" onClick={onToggle} title="Toggle conversations">
+        {isOpen ? '✕' : '💬'}
+      </button>
+
+      {/* Sidebar */}
+      <div className={`conversation-sidebar ${isOpen ? 'open' : 'closed'}`}>
+        <div className="sidebar-header">
+          <h2>Conversations</h2>
+          <button className="new-conversation-btn" onClick={handleNewConversation} title="New conversation">
+            ➕ New
+          </button>
+        </div>
+
+        {/* Search Bar (Sprint 11) */}
+        <div className="sidebar-search">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
+            placeholder="Search conversations..."
+            className="search-input"
+          />
+          <button
+            onClick={handleSearch}
+            disabled={isSearching || searchQuery.trim().length < 3}
+            className="search-btn"
+            title="Search (Enter)"
+          >
+            {isSearching ? '⏳' : '🔍'}
+          </button>
+        </div>
+
+        {/* Search Results Overlay */}
+        {showSearchResults && (
+          <SearchResults
+            results={searchResults}
+            query={searchQuery}
+            onResultClick={handleSearchResultClick}
+            onClose={handleCloseSearch}
+          />
+        )}
+
+        <div className="conversations-list">
+          {conversations.length === 0 ? (
+            <div className="empty-conversations">
+              <p>No conversations yet</p>
+              <p className="empty-hint">Click "New" to start</p>
+            </div>
+          ) : (
+            conversations.map((conversation) => (
+              <div
+                key={conversation.id}
+                className={`conversation-item ${
+                  conversation.id === currentConversationId ? 'active' : ''
+                }`}
+              >
+                {editingId === conversation.id ? (
+                  <div className="conversation-edit">
+                    <input
+                      type="text"
+                      value={editingTitle}
+                      onChange={(e) => setEditingTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSaveRename(conversation.id);
+                        if (e.key === 'Escape') handleCancelRename();
+                      }}
+                      autoFocus
+                      className="conversation-edit-input"
+                    />
+                    <div className="conversation-edit-actions">
+                      <button
+                        onClick={() => handleSaveRename(conversation.id)}
+                        className="edit-save-btn"
+                        title="Save"
+                      >
+                        ✓
+                      </button>
+                      <button
+                        onClick={handleCancelRename}
+                        className="edit-cancel-btn"
+                        title="Cancel"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div
+                      className="conversation-main"
+                      onClick={() => onConversationSelect(conversation)}
+                    >
+                      <div className="conversation-title">{conversation.title}</div>
+                      <div className="conversation-date">{formatDate(conversation.created_at)}</div>
+                    </div>
+                    <div className="conversation-actions">
+                      <button
+                        onClick={() => handleRename(conversation)}
+                        className="conversation-action-btn"
+                        title="Rename"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => handleExport(conversation)}
+                        className="conversation-action-btn"
+                        title="Export"
+                      >
+                        💾
+                      </button>
+                      <button
+                        onClick={() => handleDelete(conversation)}
+                        className="conversation-action-btn delete-btn"
+                        title="Delete"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="sidebar-footer">
+          <button className="export-all-btn" onClick={handleExportAll}>
+            📦 Export All
+          </button>
+          <div className="sidebar-stats">
+            {conversations.length} {conversations.length === 1 ? 'conversation' : 'conversations'}
+          </div>
+        </div>
+      </div>
+
+      {/* Overlay for mobile */}
+      {isOpen && <div className="sidebar-overlay" onClick={onToggle} />}
+    </>
+  );
+}

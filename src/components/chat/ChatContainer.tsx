@@ -1,5 +1,5 @@
 /**
- * Chat Container (Sprint 2 Enhanced)
+ * Chat Container (Sprint 2-4 Enhanced)
  *
  * This component connects the Chat UI to multiple AI adapters (local and external).
  * It manages:
@@ -7,23 +7,33 @@
  * - PII anonymization for external adapters
  * - Message persistence
  * - Module state tracking for transparency
+ * - Conversation management (Sprint 4)
  *
  * Sprint 2: Privacy and Modularity Framework
+ * Sprint 4: Conversation Management
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { ChatInterface } from './ChatInterface';
 import { AdapterSelector } from '../AdapterSelector';
+import { ConversationSidebar } from '../ConversationSidebar';
 import { dbService, type ChatMessage, type Conversation } from '../../services/db.service';
 import { initializeDatabase } from '../../db/init';
 import { adapterRegistry } from '../../modules/adapters';
 import { anonymizerService, type ScrubMapping } from '../../services/anonymizer.service';
+import { governanceService } from '../../services/governance.service';
+import { embeddingsService } from '../../services/embeddings.service';
+import { rdiService } from '../../services/rdi.service';
+import { socraticService } from '../../services/socratic.service';
+import { preferencesService } from '../../services/preferences.service';
 import { useChatState } from '../../store/chat.store';
 import type { IChatCompletionRequest } from '../../modules/adapters';
 
 export function ChatContainer() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [modelStatus, setModelStatus] = useState<{
     ready: boolean;
@@ -32,7 +42,34 @@ export function ChatContainer() {
     error?: string;
   }>({ ready: false, loading: false, progress: 0 });
 
-  const { selectedAdapterId, setModuleState } = useChatState();
+  const { selectedAdapterId, setModuleState, setAbortController } = useChatState();
+
+  // Load all conversations
+  const loadConversations = useCallback(() => {
+    const allConversations = dbService.getConversations();
+    setConversations(allConversations);
+    return allConversations;
+  }, []);
+
+  // Switch to a conversation
+  const switchToConversation = useCallback((conversation: Conversation) => {
+    setCurrentConversation(conversation);
+    const history = dbService.getConversationHistory(conversation.id);
+    setMessages(history);
+    console.log(`[ChatContainer] Switched to conversation: ${conversation.id}`);
+    // Close sidebar on mobile after selecting
+    if (window.innerWidth < 1024) {
+      setSidebarOpen(false);
+    }
+  }, []);
+
+  // Create new conversation
+  const createNewConversation = useCallback(() => {
+    const newConv = dbService.createConversation('New Conversation');
+    loadConversations();
+    switchToConversation(newConv);
+    console.log(`[ChatContainer] Created new conversation: ${newConv.id}`);
+  }, [loadConversations, switchToConversation]);
 
   // Initialize database on mount
   useEffect(() => {
@@ -43,17 +80,27 @@ export function ChatContainer() {
         // Initialize database and schema
         await initializeDatabase();
 
-        // Get or create a conversation
-        const conversations = dbService.getConversations();
+        // Initialize user preferences
+        await preferencesService.initialize();
+        console.log('[ChatContainer] Preferences loaded');
+
+        // Apply user preferences
+        const prefs = preferencesService.getPreferences();
+        socraticService.setSocraticMode(prefs.enableSocraticMode);
+        console.log(`[ChatContainer] Socratic mode: ${prefs.enableSocraticMode ? 'enabled' : 'disabled'}`);
+
+        // Load all conversations
+        const allConversations = loadConversations();
         let conversation: Conversation;
 
-        if (conversations.length > 0) {
+        if (allConversations.length > 0) {
           // Use the most recent conversation
-          conversation = conversations[0];
+          conversation = allConversations[0];
           console.log(`[ChatContainer] Using existing conversation: ${conversation.id}`);
         } else {
           // Create a new conversation
           conversation = dbService.createConversation('My First Chat');
+          loadConversations(); // Refresh list
           console.log(`[ChatContainer] Created new conversation: ${conversation.id}`);
         }
 
@@ -69,7 +116,7 @@ export function ChatContainer() {
     };
 
     init();
-  }, []);
+  }, [loadConversations]);
 
   // Initialize the selected adapter when it changes
   useEffect(() => {
@@ -163,10 +210,111 @@ export function ChatContainer() {
 
         setMessages(prev => [...prev, userMessage]);
 
-        // STEP 2: Get conversation history
+        // STEP 2: Track governance metrics (ARI + RDI)
+        // ARI: Autonomy Retention Index - measures user autonomy
+        // RDI: Reality Drift Index - detects conceptual topic drift
+        try {
+          // Calculate ARI metrics
+          const governanceMetrics = await governanceService.analyzePrompt(content);
+
+          // Generate embedding for RDI (async, may take a moment on first use)
+          let promptEmbedding: Uint8Array | undefined;
+          let rdiScore = 0;
+
+          try {
+            const embedding = await embeddingsService.embed(content);
+            promptEmbedding = embeddingsService.serializeEmbedding(embedding);
+
+            // Get recent embeddings for drift comparison
+            const recentEmbeddingBlobs = dbService.getRecentEmbeddings(10);
+            const recentEmbeddings = recentEmbeddingBlobs.map(blob =>
+              embeddingsService.deserializeEmbedding(blob)
+            );
+
+            // Calculate RDI
+            const rdiMetrics = rdiService.calculateRDI(embedding, recentEmbeddings);
+            rdiScore = rdiMetrics.rdiScore;
+
+            // Log drift alert if detected
+            if (rdiMetrics.alert) {
+              console.warn('[ChatContainer] 🚨 High topic drift detected:', {
+                rdiScore: rdiMetrics.rdiScore.toFixed(3),
+                driftLevel: rdiMetrics.driftLevel,
+                recommendation: rdiService.getRecommendation(rdiMetrics.rdiScore),
+              });
+            }
+          } catch (embeddingError) {
+            console.warn('[ChatContainer] Failed to generate embedding for RDI:', embeddingError);
+            // Continue without RDI if embeddings fail
+          }
+
+          // Store metrics in database
+          dbService.addGovernanceMetrics({
+            timestamp: governanceMetrics.timestamp,
+            userPromptHash: governanceMetrics.userPromptHash,
+            lexicalDensity: governanceMetrics.lexicalDensity,
+            syntacticComplexity: governanceMetrics.syntacticComplexity,
+            promptEmbedding,
+          });
+
+          console.log('[ChatContainer] Governance tracked:', {
+            ARI: governanceMetrics.ariScore.toFixed(2),
+            RDI: rdiScore.toFixed(2),
+          });
+        } catch (error) {
+          console.error('[ChatContainer] Failed to track governance metrics:', error);
+          // Don't fail the entire operation if governance tracking fails
+        }
+
+        // STEP 3: Get conversation history
         const history = dbService.getConversationHistory(currentConversation.id);
 
-        // STEP 3: Anonymization for external adapters
+        // STEP 3.5: Socratic Co-pilot Mode (if enabled and ARI is low)
+        // Calculate current ARI from recent metrics
+        let currentARI = 0.65; // Default to good ARI
+        try {
+          const recentMetrics = dbService.getRecentGovernanceMetrics(1);
+          if (recentMetrics.length > 0) {
+            currentARI = recentMetrics[0].ariScore;
+          }
+        } catch (error) {
+          console.warn('[ChatContainer] Failed to get recent ARI:', error);
+        }
+
+        // Check if Socratic intervention should occur
+        if (socraticService.shouldIntervene(currentARI)) {
+          console.log(`[ChatContainer] 🎓 Socratic mode triggered (ARI: ${currentARI.toFixed(2)})`);
+
+          // Generate Socratic prompt based on user's query
+          const socraticPrompt = socraticService.generatePrompt(content, currentARI);
+
+          // Add Socratic guidance as a system message (visible to user)
+          const socraticMessage: ChatMessage = {
+            id: `socratic-${Date.now()}`,
+            conversation_id: currentConversation.id,
+            role: 'system',
+            content: socraticService.formatPrompt(socraticPrompt),
+            module_used: 'socratic_copilot',
+            trace_data: JSON.stringify({ ariScore: currentARI, promptType: socraticPrompt.type }),
+            timestamp: Date.now(),
+          };
+
+          // Store in database
+          dbService.addMessage({
+            conversation_id: currentConversation.id,
+            role: 'system',
+            content: socraticMessage.content,
+            module_used: 'socratic_copilot',
+            trace_data: socraticMessage.trace_data,
+          });
+
+          // Show to user
+          setMessages(prev => [...prev, socraticMessage]);
+
+          console.log(`[ChatContainer] Socratic guidance: ${socraticPrompt.type}`);
+        }
+
+        // STEP 4: Anonymization for external adapters
         let scrubMappings: ScrubMapping[] = [];
         let messagesToSend = history.map(msg => ({
           role: msg.role as 'system' | 'user' | 'assistant',
@@ -194,7 +342,7 @@ export function ChatContainer() {
           }
         }
 
-        // STEP 4: Query the AI adapter
+        // STEP 5: Query the AI adapter
         const moduleStateDuringQuery = isExternalAdapter ? 'EXTERNAL_API' : 'LOCAL_PROCESSING';
         setModuleState(moduleStateDuringQuery, adapter.name);
 
@@ -207,16 +355,28 @@ export function ChatContainer() {
           temperature: 0.7,
         };
 
-        const response = await adapter.query(request);
+        // Create AbortController for external API calls (enables "Stop" button)
+        let abortController: AbortController | undefined;
+        if (isExternalAdapter) {
+          abortController = new AbortController();
+          setAbortController(abortController);
+        }
 
-        // STEP 5: Extract assistant response
+        const response = await adapter.query(request, abortController?.signal);
+
+        // Clear AbortController after successful completion
+        if (isExternalAdapter) {
+          setAbortController(null);
+        }
+
+        // STEP 6: Extract assistant response
         if (!('choices' in response) || response.choices.length === 0) {
           throw new Error('Invalid response from adapter');
         }
 
         let assistantContent = response.choices[0].message.content;
 
-        // STEP 6: Unscrub PII for external adapters
+        // STEP 7: Unscrub PII for external adapters
         if (isExternalAdapter && scrubMappings.length > 0) {
           setModuleState('UNSCRUBBING');
           console.log('[ChatContainer] Restoring PII from response...');
@@ -229,7 +389,7 @@ export function ChatContainer() {
           }
         }
 
-        // STEP 7: Add assistant message to database
+        // STEP 8: Add assistant message to database
         const assistantMessageId = dbService.addMessage({
           conversation_id: currentConversation.id,
           role: 'assistant',
@@ -258,24 +418,42 @@ export function ChatContainer() {
       } catch (error) {
         console.error('[ChatContainer] ❌ Failed to get response:', error);
 
-        // Add error message to UI
-        const errorMessage: ChatMessage = {
-          id: `error-${Date.now()}`,
-          conversation_id: currentConversation.id,
-          role: 'system',
-          content: `Error: ${error instanceof Error ? error.message : 'Failed to get response'}`,
-          module_used: null,
-          trace_data: null,
-          timestamp: Date.now(),
-        };
+        // Check if this was an abort (user clicked "Stop")
+        if (error instanceof Error && error.name === 'AbortError') {
+          console.log('[ChatContainer] Request aborted by user (Humanity Override)');
 
-        setMessages(prev => [...prev, errorMessage]);
+          const abortMessage: ChatMessage = {
+            id: `abort-${Date.now()}`,
+            conversation_id: currentConversation.id,
+            role: 'system',
+            content: '⚠️ Request stopped by user (Humanity Override)',
+            module_used: null,
+            trace_data: null,
+            timestamp: Date.now(),
+          };
+
+          setMessages(prev => [...prev, abortMessage]);
+        } else {
+          // Other errors
+          const errorMessage: ChatMessage = {
+            id: `error-${Date.now()}`,
+            conversation_id: currentConversation.id,
+            role: 'system',
+            content: `Error: ${error instanceof Error ? error.message : 'Failed to get response'}`,
+            module_used: null,
+            trace_data: null,
+            timestamp: Date.now(),
+          };
+
+          setMessages(prev => [...prev, errorMessage]);
+        }
       } finally {
         setIsLoading(false);
         setModuleState('IDLE');
+        setAbortController(null); // Always clear abort controller
       }
     },
-    [currentConversation, modelStatus.ready, selectedAdapterId, setModuleState]
+    [currentConversation, modelStatus.ready, selectedAdapterId, setModuleState, setAbortController]
   );
 
   // Show model loading status
@@ -362,21 +540,33 @@ export function ChatContainer() {
     );
   }
 
-  // Show chat interface with adapter selector
+  // Show chat interface with adapter selector and conversation sidebar
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <AdapterSelector />
-      <div style={{ flex: 1, overflow: 'hidden' }}>
-        <ChatInterface
-          messages={messages}
-          onSendMessage={handleSendMessage}
-          isLoading={isLoading}
-          loadingMessage={
-            selectedAdapterId === 'local_guardian'
-              ? 'Local AI is thinking...'
-              : `${adapterRegistry.get(selectedAdapterId)?.name} is thinking...`
-          }
-        />
+    <div style={{ height: '100%', display: 'flex' }}>
+      <ConversationSidebar
+        conversations={conversations}
+        currentConversationId={currentConversation?.id || null}
+        onConversationSelect={switchToConversation}
+        onConversationCreate={createNewConversation}
+        onConversationUpdate={loadConversations}
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+      />
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <AdapterSelector />
+        <div style={{ flex: 1, overflow: 'hidden' }}>
+          <ChatInterface
+            messages={messages}
+            onSendMessage={handleSendMessage}
+            isLoading={isLoading}
+            loadingMessage={
+              selectedAdapterId === 'local_guardian'
+                ? 'Local AI is thinking...'
+                : `${adapterRegistry.get(selectedAdapterId)?.name} is thinking...`
+            }
+          />
+        </div>
       </div>
     </div>
   );

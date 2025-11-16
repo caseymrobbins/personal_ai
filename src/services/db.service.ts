@@ -11,6 +11,7 @@
  */
 
 import initSqlJs, { Database } from 'sql.js';
+import { storageService } from './storage.service';
 
 /**
  * Conversation interface
@@ -50,19 +51,29 @@ class DatabaseService {
     try {
       console.log('[DB] Initializing WASM-SQLite...');
 
+      // Initialize storage service first
+      await storageService.initialize();
+
       // Initialize sql.js
       const SQL = await initSqlJs({
         locateFile: (file) => `https://sql.js.org/dist/${file}`
       });
 
-      // Check if we have a saved database in localStorage
-      const savedDb = localStorage.getItem('sml_guardian_db');
+      // Try to load from IndexedDB
+      let savedData = await storageService.loadDatabase();
 
-      if (savedDb) {
+      // If not in IndexedDB, try migrating from localStorage
+      if (!savedData) {
+        const migrated = await storageService.migrateFromLocalStorage();
+        if (migrated) {
+          savedData = await storageService.loadDatabase();
+        }
+      }
+
+      if (savedData) {
         // Restore from saved database
-        const uint8Array = new Uint8Array(JSON.parse(savedDb));
-        this.db = new SQL.Database(uint8Array);
-        console.log('[DB] Restored database from localStorage');
+        this.db = new SQL.Database(savedData);
+        console.log('[DB] Restored database from IndexedDB');
       } else {
         // Create new database
         this.db = new SQL.Database();
@@ -106,16 +117,15 @@ class DatabaseService {
   }
 
   /**
-   * Save the database to localStorage (persistence)
+   * Save the database to IndexedDB (persistence)
    */
   async save(): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
 
     try {
       const data = this.db.export();
-      const buffer = JSON.stringify(Array.from(data));
-      localStorage.setItem('sml_guardian_db', buffer);
-      console.log('[DB] ✅ Database saved to localStorage');
+      await storageService.saveDatabase(data);
+      console.log('[DB] ✅ Database saved to IndexedDB');
     } catch (error) {
       console.error('[DB] ❌ Failed to save:', error);
       throw error;
@@ -379,6 +389,158 @@ class DatabaseService {
     );
 
     return results.map(row => row.provider);
+  }
+
+  // ============================================================================
+  // GOVERNANCE LOG METHODS (Sprint 5: Conscience Engine)
+  // ============================================================================
+
+  /**
+   * Add governance metrics to the log
+   * @param metrics Governance metrics (ARI + RDI)
+   */
+  addGovernanceMetrics(metrics: {
+    timestamp: number;
+    userPromptHash: string;
+    lexicalDensity: number;
+    syntacticComplexity: number;
+    promptEmbedding?: Uint8Array; // Optional embedding for RDI
+  }): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    this.db.run(
+      `INSERT INTO governance_log (timestamp, user_prompt_hash, lexical_density, syntactic_complexity, prompt_embedding)
+       VALUES (?, ?, ?, ?, ?)`,
+      [
+        metrics.timestamp,
+        metrics.userPromptHash,
+        metrics.lexicalDensity,
+        metrics.syntacticComplexity,
+        metrics.promptEmbedding || null
+      ]
+    );
+
+    // Auto-save after adding metrics
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    const ari = ((metrics.lexicalDensity * 0.6) + (metrics.syntacticComplexity * 0.4)).toFixed(2);
+    console.log(`[DB] Added governance metrics (ARI: ${ari}, Embedding: ${metrics.promptEmbedding ? 'yes' : 'no'})`);
+  }
+
+  /**
+   * Get recent governance metrics for trend analysis
+   * @param limit Number of recent entries to fetch (default: 100)
+   * @returns Array of governance metrics, ordered by timestamp DESC
+   */
+  getRecentGovernanceMetrics(limit: number = 100): Array<{
+    id: number;
+    timestamp: number;
+    userPromptHash: string;
+    lexicalDensity: number;
+    syntacticComplexity: number;
+    ariScore: number;
+  }> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const results = this.query<{
+      id: number;
+      timestamp: number;
+      user_prompt_hash: string;
+      lexical_density: number;
+      syntactic_complexity: number;
+    }>(
+      `SELECT id, timestamp, user_prompt_hash, lexical_density, syntactic_complexity
+       FROM governance_log
+       ORDER BY timestamp DESC
+       LIMIT ?`,
+      [limit]
+    );
+
+    // Calculate ARI score for each entry
+    return results.map(row => ({
+      id: row.id,
+      timestamp: row.timestamp,
+      userPromptHash: row.user_prompt_hash,
+      lexicalDensity: row.lexical_density,
+      syntacticComplexity: row.syntactic_complexity,
+      ariScore: (row.lexical_density * 0.6) + (row.syntactic_complexity * 0.4),
+    }));
+  }
+
+  /**
+   * Get governance statistics
+   * @returns Overall statistics (count, averages, trends)
+   */
+  getGovernanceStats(): {
+    totalEntries: number;
+    avgLexicalDensity: number;
+    avgSyntacticComplexity: number;
+    avgARI: number;
+    oldestEntry: number | null;
+    newestEntry: number | null;
+  } {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const stats = this.query<{
+      count: number;
+      avg_lexical: number;
+      avg_syntactic: number;
+      oldest: number;
+      newest: number;
+    }>(
+      `SELECT
+         COUNT(*) as count,
+         AVG(lexical_density) as avg_lexical,
+         AVG(syntactic_complexity) as avg_syntactic,
+         MIN(timestamp) as oldest,
+         MAX(timestamp) as newest
+       FROM governance_log`
+    );
+
+    if (stats.length === 0 || stats[0].count === 0) {
+      return {
+        totalEntries: 0,
+        avgLexicalDensity: 0,
+        avgSyntacticComplexity: 0,
+        avgARI: 0,
+        oldestEntry: null,
+        newestEntry: null,
+      };
+    }
+
+    const row = stats[0];
+    const avgLexicalDensity = row.avg_lexical || 0;
+    const avgSyntacticComplexity = row.avg_syntactic || 0;
+    const avgARI = (avgLexicalDensity * 0.6) + (avgSyntacticComplexity * 0.4);
+
+    return {
+      totalEntries: row.count,
+      avgLexicalDensity,
+      avgSyntacticComplexity,
+      avgARI,
+      oldestEntry: row.oldest,
+      newestEntry: row.newest,
+    };
+  }
+
+  /**
+   * Get recent prompt embeddings for RDI calculation
+   * @param limit Number of recent embeddings to fetch (default: 10)
+   * @returns Array of embeddings (BLOBs), ordered by timestamp DESC
+   */
+  getRecentEmbeddings(limit: number = 10): Uint8Array[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const results = this.query<{ prompt_embedding: Uint8Array }>(
+      `SELECT prompt_embedding
+       FROM governance_log
+       WHERE prompt_embedding IS NOT NULL
+       ORDER BY timestamp DESC
+       LIMIT ?`,
+      [limit]
+    );
+
+    return results.map(row => row.prompt_embedding);
   }
 
   /**
