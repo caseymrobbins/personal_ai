@@ -1,5 +1,5 @@
 /**
- * Chat Container (Sprint 2 Enhanced)
+ * Chat Container (Sprint 2-4 Enhanced)
  *
  * This component connects the Chat UI to multiple AI adapters (local and external).
  * It manages:
@@ -7,13 +7,16 @@
  * - PII anonymization for external adapters
  * - Message persistence
  * - Module state tracking for transparency
+ * - Conversation management (Sprint 4)
  *
  * Sprint 2: Privacy and Modularity Framework
+ * Sprint 4: Conversation Management
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { ChatInterface } from './ChatInterface';
 import { AdapterSelector } from '../AdapterSelector';
+import { ConversationSidebar } from '../ConversationSidebar';
 import { dbService, type ChatMessage, type Conversation } from '../../services/db.service';
 import { initializeDatabase } from '../../db/init';
 import { adapterRegistry } from '../../modules/adapters';
@@ -23,7 +26,9 @@ import type { IChatCompletionRequest } from '../../modules/adapters';
 
 export function ChatContainer() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [modelStatus, setModelStatus] = useState<{
     ready: boolean;
@@ -34,6 +39,33 @@ export function ChatContainer() {
 
   const { selectedAdapterId, setModuleState, setAbortController } = useChatState();
 
+  // Load all conversations
+  const loadConversations = useCallback(() => {
+    const allConversations = dbService.getConversations();
+    setConversations(allConversations);
+    return allConversations;
+  }, []);
+
+  // Switch to a conversation
+  const switchToConversation = useCallback((conversation: Conversation) => {
+    setCurrentConversation(conversation);
+    const history = dbService.getConversationHistory(conversation.id);
+    setMessages(history);
+    console.log(`[ChatContainer] Switched to conversation: ${conversation.id}`);
+    // Close sidebar on mobile after selecting
+    if (window.innerWidth < 1024) {
+      setSidebarOpen(false);
+    }
+  }, []);
+
+  // Create new conversation
+  const createNewConversation = useCallback(() => {
+    const newConv = dbService.createConversation('New Conversation');
+    loadConversations();
+    switchToConversation(newConv);
+    console.log(`[ChatContainer] Created new conversation: ${newConv.id}`);
+  }, [loadConversations, switchToConversation]);
+
   // Initialize database on mount
   useEffect(() => {
     const init = async () => {
@@ -43,17 +75,18 @@ export function ChatContainer() {
         // Initialize database and schema
         await initializeDatabase();
 
-        // Get or create a conversation
-        const conversations = dbService.getConversations();
+        // Load all conversations
+        const allConversations = loadConversations();
         let conversation: Conversation;
 
-        if (conversations.length > 0) {
+        if (allConversations.length > 0) {
           // Use the most recent conversation
-          conversation = conversations[0];
+          conversation = allConversations[0];
           console.log(`[ChatContainer] Using existing conversation: ${conversation.id}`);
         } else {
           // Create a new conversation
           conversation = dbService.createConversation('My First Chat');
+          loadConversations(); // Refresh list
           console.log(`[ChatContainer] Created new conversation: ${conversation.id}`);
         }
 
@@ -69,7 +102,7 @@ export function ChatContainer() {
     };
 
     init();
-  }, []);
+  }, [loadConversations]);
 
   // Initialize the selected adapter when it changes
   useEffect(() => {
@@ -392,21 +425,33 @@ export function ChatContainer() {
     );
   }
 
-  // Show chat interface with adapter selector
+  // Show chat interface with adapter selector and conversation sidebar
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <AdapterSelector />
-      <div style={{ flex: 1, overflow: 'hidden' }}>
-        <ChatInterface
-          messages={messages}
-          onSendMessage={handleSendMessage}
-          isLoading={isLoading}
-          loadingMessage={
-            selectedAdapterId === 'local_guardian'
-              ? 'Local AI is thinking...'
-              : `${adapterRegistry.get(selectedAdapterId)?.name} is thinking...`
-          }
-        />
+    <div style={{ height: '100%', display: 'flex' }}>
+      <ConversationSidebar
+        conversations={conversations}
+        currentConversationId={currentConversation?.id || null}
+        onConversationSelect={switchToConversation}
+        onConversationCreate={createNewConversation}
+        onConversationUpdate={loadConversations}
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+      />
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <AdapterSelector />
+        <div style={{ flex: 1, overflow: 'hidden' }}>
+          <ChatInterface
+            messages={messages}
+            onSendMessage={handleSendMessage}
+            isLoading={isLoading}
+            loadingMessage={
+              selectedAdapterId === 'local_guardian'
+                ? 'Local AI is thinking...'
+                : `${adapterRegistry.get(selectedAdapterId)?.name} is thinking...`
+            }
+          />
+        </div>
       </div>
     </div>
   );
