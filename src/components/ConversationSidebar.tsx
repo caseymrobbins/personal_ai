@@ -1,5 +1,5 @@
 /**
- * Conversation Sidebar Component (Sprint 4)
+ * Conversation Sidebar Component (Sprint 4 + Sprint 11)
  *
  * Provides conversation management:
  * - List all conversations
@@ -8,10 +8,13 @@
  * - Rename conversations
  * - Delete conversations
  * - Export conversations
+ * - Semantic search across conversations (Sprint 11)
  */
 
 import { useState } from 'react';
 import { dbService, type Conversation } from '../services/db.service';
+import { searchService, type SearchResult } from '../services/search.service';
+import { SearchResults } from './SearchResults';
 import './ConversationSidebar.css';
 
 export interface ConversationSidebarProps {
@@ -35,9 +38,59 @@ export function ConversationSidebar({
 }: ConversationSidebarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
 
   const handleNewConversation = () => {
     onConversationCreate();
+  };
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim() || searchQuery.trim().length < 3) {
+      return;
+    }
+
+    setIsSearching(true);
+    setShowSearchResults(true);
+
+    try {
+      const results = await searchService.search(searchQuery.trim(), {
+        maxResults: 30,
+        minSimilarity: 0.3,
+      });
+      setSearchResults(results);
+    } catch (error) {
+      console.error('[ConversationSidebar] Search failed:', error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    } else if (e.key === 'Escape') {
+      setSearchQuery('');
+      setShowSearchResults(false);
+    }
+  };
+
+  const handleSearchResultClick = (result: SearchResult) => {
+    // Find and select the conversation
+    const conversation = conversations.find(c => c.id === result.conversationId);
+    if (conversation) {
+      onConversationSelect(conversation);
+      setShowSearchResults(false);
+      setSearchQuery('');
+    }
+  };
+
+  const handleCloseSearch = () => {
+    setShowSearchResults(false);
+    setSearchQuery('');
   };
 
   const handleRename = (conversation: Conversation) => {
@@ -176,6 +229,36 @@ export function ConversationSidebar({
             ➕ New
           </button>
         </div>
+
+        {/* Search Bar (Sprint 11) */}
+        <div className="sidebar-search">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
+            placeholder="Search conversations..."
+            className="search-input"
+          />
+          <button
+            onClick={handleSearch}
+            disabled={isSearching || searchQuery.trim().length < 3}
+            className="search-btn"
+            title="Search (Enter)"
+          >
+            {isSearching ? '⏳' : '🔍'}
+          </button>
+        </div>
+
+        {/* Search Results Overlay */}
+        {showSearchResults && (
+          <SearchResults
+            results={searchResults}
+            query={searchQuery}
+            onResultClick={handleSearchResultClick}
+            onClose={handleCloseSearch}
+          />
+        )}
 
         <div className="conversations-list">
           {conversations.length === 0 ? (

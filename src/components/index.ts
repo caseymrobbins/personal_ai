@@ -11,6 +11,7 @@ export { ARIDashboard } from './ARIDashboard';
 export { SocraticInterceptor } from './SocraticInterceptor';
 export { SettingsModal } from './SettingsModal';
 export { ConversationSidebar } from './ConversationSidebar';
+export { SearchResults } from './SearchResults';
 export { DatabasePOC } from './DatabasePOC';
 export { TransformersPOC } from './TransformersPOC';
 export { WebLLMPOC } from './WebLLMPOC';
