@@ -14,6 +14,7 @@ import { useState } from 'react';
 import { useChatState, ModuleState } from '../store/chat.store';
 import { TraceInspector } from './TraceInspector';
 import { ARIDashboard } from './ARIDashboard';
+import { SettingsModal } from './SettingsModal';
 import './ModuleStatusIndicator.css';
 
 /**
@@ -91,6 +92,7 @@ export function ModuleStatusIndicator() {
 
   const [showInspector, setShowInspector] = useState(false);
   const [showARIDashboard, setShowARIDashboard] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const display = getStateDisplay(moduleState, externalProviderName);
 
   // Don't show anything when idle
@@ -146,6 +148,14 @@ export function ModuleStatusIndicator() {
             🧠 ARI
           </button>
 
+          <button
+            className="status-action-btn settings-btn"
+            onClick={() => setShowSettings(true)}
+            title="Open Settings"
+          >
+            ⚙️ Settings
+          </button>
+
           {canAbort && (
             <button
               className="status-action-btn stop-btn"
@@ -168,6 +178,10 @@ export function ModuleStatusIndicator() {
 
       {showARIDashboard && (
         <ARIDashboard onClose={() => setShowARIDashboard(false)} />
+      )}
+
+      {showSettings && (
+        <SettingsModal onClose={() => setShowSettings(false)} />
       )}
     </>
   );

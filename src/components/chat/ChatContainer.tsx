@@ -25,6 +25,7 @@ import { governanceService } from '../../services/governance.service';
 import { embeddingsService } from '../../services/embeddings.service';
 import { rdiService } from '../../services/rdi.service';
 import { socraticService } from '../../services/socratic.service';
+import { preferencesService } from '../../services/preferences.service';
 import { useChatState } from '../../store/chat.store';
 import type { IChatCompletionRequest } from '../../modules/adapters';
 
@@ -79,10 +80,14 @@ export function ChatContainer() {
         // Initialize database and schema
         await initializeDatabase();
 
-        // Enable Socratic Co-pilot Mode by default
-        // (Will be configurable via user preferences in Sprint 9)
-        socraticService.setSocraticMode(true);
-        console.log('[ChatContainer] Socratic Co-pilot Mode enabled');
+        // Initialize user preferences
+        await preferencesService.initialize();
+        console.log('[ChatContainer] Preferences loaded');
+
+        // Apply user preferences
+        const prefs = preferencesService.getPreferences();
+        socraticService.setSocraticMode(prefs.enableSocraticMode);
+        console.log(`[ChatContainer] Socratic mode: ${prefs.enableSocraticMode ? 'enabled' : 'disabled'}`);
 
         // Load all conversations
         const allConversations = loadConversations();

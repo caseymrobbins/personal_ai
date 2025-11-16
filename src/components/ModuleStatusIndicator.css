@@ -160,6 +160,15 @@
   border-color: rgba(159, 122, 234, 0.6);
 }
 
+.settings-btn {
+  border-color: rgba(102, 126, 234, 0.4);
+}
+
+.settings-btn:hover {
+  background: rgba(102, 126, 234, 0.15);
+  border-color: rgba(102, 126, 234, 0.6);
+}
+
 .stop-btn {
   border-color: rgba(239, 68, 68, 0.4);
   color: #fca5a5;

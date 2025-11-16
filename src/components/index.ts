@@ -9,6 +9,7 @@ export { ModuleStatusIndicator } from './ModuleStatusIndicator';
 export { TraceInspector } from './TraceInspector';
 export { ARIDashboard } from './ARIDashboard';
 export { SocraticInterceptor } from './SocraticInterceptor';
+export { SettingsModal } from './SettingsModal';
 export { ConversationSidebar } from './ConversationSidebar';
 export { DatabasePOC } from './DatabasePOC';
 export { TransformersPOC } from './TransformersPOC';
