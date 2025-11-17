@@ -6,6 +6,7 @@
 
 import { useState, useEffect } from 'react';
 import { preferencesService, type UserPreferences } from '../services/preferences.service';
+import { ConversationImporter } from './ConversationImporter';
 import './SettingsModal.css';
 
 export interface SettingsModalProps {
@@ -17,7 +18,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
     preferencesService.getPreferences()
   );
   const [hasChanges, setHasChanges] = useState(false);
-  const [activeTab, setActiveTab] = useState<'general' | 'privacy' | 'advanced'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'privacy' | 'data' | 'advanced'>('general');
 
   useEffect(() => {
     // Subscribe to preference changes
@@ -106,6 +107,12 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
             onClick={() => setActiveTab('privacy')}
           >
             Privacy
+          </button>
+          <button
+            className={`settings-tab ${activeTab === 'data' ? 'active' : ''}`}
+            onClick={() => setActiveTab('data')}
+          >
+            Data
           </button>
           <button
             className={`settings-tab ${activeTab === 'advanced' ? 'active' : ''}`}
@@ -223,6 +230,13 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                   <li>Export your data anytime (.db file)</li>
                 </ul>
               </div>
+            </div>
+          )}
+
+          {/* Data Tab */}
+          {activeTab === 'data' && (
+            <div className="settings-section">
+              <ConversationImporter />
             </div>
           )}
 

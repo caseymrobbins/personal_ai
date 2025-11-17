@@ -18,6 +18,7 @@ export { TransformersPOC } from './TransformersPOC';
 export { WebLLMPOC } from './WebLLMPOC';
 export { AdapterSelector } from './AdapterSelector';
 export { APIKeyManager } from './APIKeyManager';
+export { ConversationImporter } from './ConversationImporter';
 
 // Chat components
 export * from './chat';
