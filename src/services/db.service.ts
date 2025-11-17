@@ -74,6 +74,19 @@ class DatabaseService {
         // Restore from saved database
         this.db = new SQL.Database(savedData);
         console.log('[DB] Restored database from IndexedDB');
+
+        // Verify that required tables exist
+        const tables = this.query<{ name: string }>(
+          "SELECT name FROM sqlite_master WHERE type='table'"
+        ).map(row => row.name);
+
+        const requiredTables = ['conversations', 'chat_messages', 'api_keys', 'governance_log', 'user_preferences'];
+        const missingTables = requiredTables.filter(table => !tables.includes(table));
+
+        if (missingTables.length > 0) {
+          console.warn('[DB] ⚠️ Restored database is missing tables:', missingTables);
+          console.warn('[DB] ⚠️ This may be an old database format. Schema initialization will be required.');
+        }
       } else {
         // Create new database
         this.db = new SQL.Database();
