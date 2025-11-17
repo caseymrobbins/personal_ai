@@ -207,20 +207,105 @@ export class AnthropicAdapter implements IModuleAdapter {
   private createStreamAdapter(
     anthropicStream: ReadableStream
   ): ReadableStream<IChatCompletionChunk> {
-    // This is a simplified implementation
-    // In production, you'd need to properly parse Anthropic's SSE format
+    const decoder = new TextDecoder();
+    let buffer = '';
+
     return new ReadableStream({
       async start(controller) {
         const reader = anthropicStream.getReader();
 
         try {
           while (true) {
-            const { done } = await reader.read();
+            const { done, value } = await reader.read();
             if (done) break;
 
-            // TODO: Implement proper SSE parsing and conversion
-            // Parse SSE events from Anthropic and convert to OpenAI chunk format
+            // Decode the chunk and add to buffer
+            buffer += decoder.decode(value, { stream: true });
+
+            // Process complete SSE events (separated by double newline)
+            const events = buffer.split('\n\n');
+            buffer = events.pop() || ''; // Keep incomplete event in buffer
+
+            for (const event of events) {
+              if (!event.trim()) continue;
+
+              // Parse SSE event (format: "event: type\ndata: {...}")
+              const lines = event.split('\n');
+              let eventType = '';
+              let eventData = '';
+
+              for (const line of lines) {
+                if (line.startsWith('event: ')) {
+                  eventType = line.slice(7).trim();
+                } else if (line.startsWith('data: ')) {
+                  eventData = line.slice(6).trim();
+                }
+              }
+
+              // Skip non-data events
+              if (!eventData) continue;
+
+              try {
+                const anthropicEvent = JSON.parse(eventData);
+
+                // Convert Anthropic events to OpenAI chunk format
+                if (eventType === 'content_block_delta' && anthropicEvent.delta?.text) {
+                  const chunk: IChatCompletionChunk = {
+                    id: anthropicEvent.id || `chatcmpl-${Date.now()}`,
+                    model: this.defaultModel,
+                    created: Math.floor(Date.now() / 1000),
+                    choices: [
+                      {
+                        index: 0,
+                        delta: {
+                          content: anthropicEvent.delta.text,
+                        },
+                        finish_reason: null,
+                      },
+                    ],
+                  };
+                  controller.enqueue(chunk);
+                } else if (eventType === 'message_start') {
+                  // Send initial chunk with role
+                  const chunk: IChatCompletionChunk = {
+                    id: anthropicEvent.message?.id || `chatcmpl-${Date.now()}`,
+                    model: anthropicEvent.message?.model || this.defaultModel,
+                    created: Math.floor(Date.now() / 1000),
+                    choices: [
+                      {
+                        index: 0,
+                        delta: {
+                          role: 'assistant',
+                        },
+                        finish_reason: null,
+                      },
+                    ],
+                  };
+                  controller.enqueue(chunk);
+                } else if (eventType === 'message_delta' && anthropicEvent.delta?.stop_reason) {
+                  // Send final chunk with finish_reason
+                  const chunk: IChatCompletionChunk = {
+                    id: `chatcmpl-${Date.now()}`,
+                    model: this.defaultModel,
+                    created: Math.floor(Date.now() / 1000),
+                    choices: [
+                      {
+                        index: 0,
+                        delta: {},
+                        finish_reason: this.mapStopReason(anthropicEvent.delta.stop_reason),
+                      },
+                    ],
+                  };
+                  controller.enqueue(chunk);
+                }
+              } catch (err) {
+                console.error('[Anthropic] Failed to parse SSE event:', err);
+              }
+            }
           }
+        } catch (err) {
+          console.error('[Anthropic] Stream error:', err);
+          controller.error(err);
         } finally {
           controller.close();
         }

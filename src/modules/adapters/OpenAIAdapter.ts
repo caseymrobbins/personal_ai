@@ -114,17 +114,73 @@ export class OpenAIAdapter implements IModuleAdapter {
     }
 
     if (request.stream) {
-      // Return streaming response
-      // Note: This is a placeholder. Proper implementation would parse SSE events.
+      // Return streaming response with proper SSE parsing
       if (!response.body) {
         throw new Error('No response body for streaming');
       }
-      return response.body as unknown as ReadableStream<IChatCompletionChunk>;
+      return this.parseSSEStream(response.body);
     } else {
       // Return full response
       const data: IChatCompletionResponse = await response.json();
       return data;
     }
+  }
+
+  /**
+   * Parse OpenAI's SSE stream and convert to typed chunks
+   */
+  private parseSSEStream(stream: ReadableStream<Uint8Array>): ReadableStream<IChatCompletionChunk> {
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    return new ReadableStream({
+      async start(controller) {
+        const reader = stream.getReader();
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            // Decode the chunk and add to buffer
+            buffer += decoder.decode(value, { stream: true });
+
+            // Process complete lines
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+            for (const line of lines) {
+              const trimmedLine = line.trim();
+
+              // Skip empty lines and comments
+              if (!trimmedLine || trimmedLine.startsWith(':')) continue;
+
+              // OpenAI uses "data: " prefix for SSE
+              if (trimmedLine.startsWith('data: ')) {
+                const data = trimmedLine.slice(6); // Remove "data: " prefix
+
+                // Check for end of stream
+                if (data === '[DONE]') {
+                  continue;
+                }
+
+                try {
+                  const chunk: IChatCompletionChunk = JSON.parse(data);
+                  controller.enqueue(chunk);
+                } catch (err) {
+                  console.error('[OpenAI] Failed to parse SSE chunk:', err);
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.error('[OpenAI] Stream error:', err);
+          controller.error(err);
+        } finally {
+          controller.close();
+        }
+      },
+    });
   }
 
   /**
