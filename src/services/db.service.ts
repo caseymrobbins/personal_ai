@@ -135,6 +135,51 @@ export interface ConversationRelation {
   created_at: number;
 }
 
+/**
+ * Message sentiment analysis result
+ */
+export interface MessageSentiment {
+  id: string;
+  message_id: string;
+  sentiment_score: number; // -1 to 1: negative to positive
+  sentiment_label: 'negative' | 'neutral' | 'positive';
+  confidence: number; // 0 to 1
+  emotion_tags?: string; // comma-separated: joy, anger, sadness, fear, etc
+  analyzed_at: number;
+}
+
+/**
+ * Sentiment trend for a conversation
+ */
+export interface SentimentTrend {
+  conversation_id: string;
+  average_sentiment: number;
+  sentiment_distribution: {
+    negative: number;
+    neutral: number;
+    positive: number;
+  };
+  emotion_frequency: Record<string, number>;
+  trend_direction: 'improving' | 'declining' | 'stable';
+  last_updated: number;
+}
+
+/**
+ * Sentiment statistics across conversations or time periods
+ */
+export interface SentimentStats {
+  totalMessages: number;
+  analyzedMessages: number;
+  averageSentiment: number;
+  sentimentBreakdown: {
+    negative: number;
+    neutral: number;
+    positive: number;
+  };
+  topEmotions: Array<{ emotion: string; count: number }>;
+  sentimentTrend: 'improving' | 'declining' | 'stable';
+}
+
 class DatabaseService {
   private db: Database | null = null;
   private initialized = false;
@@ -353,6 +398,34 @@ class DatabaseService {
         )
       `);
 
+      // Message sentiment analysis table
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS message_sentiment (
+          id TEXT PRIMARY KEY,
+          message_id TEXT NOT NULL,
+          sentiment_score REAL NOT NULL,
+          sentiment_label TEXT NOT NULL CHECK(sentiment_label IN ('negative', 'neutral', 'positive')),
+          confidence REAL NOT NULL,
+          emotion_tags TEXT,
+          analyzed_at INTEGER NOT NULL,
+          FOREIGN KEY (message_id) REFERENCES chat_messages(id)
+        )
+      `);
+
+      // Conversation sentiment trends table (cached aggregations)
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS conversation_sentiment_trends (
+          conversation_id TEXT PRIMARY KEY,
+          average_sentiment REAL NOT NULL,
+          negative_count INTEGER NOT NULL DEFAULT 0,
+          neutral_count INTEGER NOT NULL DEFAULT 0,
+          positive_count INTEGER NOT NULL DEFAULT 0,
+          trend_direction TEXT NOT NULL CHECK(trend_direction IN ('improving', 'declining', 'stable')),
+          last_updated INTEGER NOT NULL,
+          FOREIGN KEY (conversation_id) REFERENCES conversations(id)
+        )
+      `);
+
       // Create indexes for better query performance
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_tags_conversation ON conversation_tags(conversation_id)`);
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_tags_tag ON conversation_tags(tag_id)`);
@@ -365,6 +438,9 @@ class DatabaseService {
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_branches_parent ON conversation_branches(parent_conversation_id)`);
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_relations_source ON conversation_relations(source_conversation_id)`);
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_relations_target ON conversation_relations(target_conversation_id)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_message_sentiment_message ON message_sentiment(message_id)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_message_sentiment_label ON message_sentiment(sentiment_label)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_sentiment_trends_conversation ON conversation_sentiment_trends(conversation_id)`);
 
       console.log('[DB] ✅ Database schema created successfully');
     } catch (error) {
