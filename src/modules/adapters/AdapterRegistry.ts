@@ -9,6 +9,8 @@ import { IModuleAdapter } from './adapter.interface';
 import { LocalGuardianAdapter } from './LocalGuardianAdapter';
 import { OpenAIAdapter } from './OpenAIAdapter';
 import { AnthropicAdapter } from './AnthropicAdapter';
+import { GeminiAdapter } from './GeminiAdapter';
+import { CohereAdapter } from './CohereAdapter';
 
 class AdapterRegistry {
   private adapters: Map<string, IModuleAdapter> = new Map();
@@ -19,6 +21,8 @@ class AdapterRegistry {
     this.register(new LocalGuardianAdapter());
     this.register(new OpenAIAdapter());
     this.register(new AnthropicAdapter());
+    this.register(new GeminiAdapter());
+    this.register(new CohereAdapter());
   }
 
   /**
