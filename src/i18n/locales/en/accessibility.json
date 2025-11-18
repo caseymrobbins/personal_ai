@@ -1,0 +1,39 @@
+{
+  "accessibility": {
+    "title": "Accessibility",
+    "skipToContent": "Skip to main content",
+    "skipToConversations": "Skip to conversations",
+    "keyboardShortcuts": "Keyboard Shortcuts",
+    "screenReader": "Screen Reader"
+  },
+  "shortcuts": {
+    "newConversation": "New Conversation",
+    "toggleSidebar": "Toggle Sidebar",
+    "focusInput": "Focus Message Input",
+    "commandPalette": "Open Command Palette",
+    "showShortcuts": "Show Keyboard Shortcuts"
+  },
+  "a11y": {
+    "searchConversations": "Search conversations",
+    "conversationActions": "Conversation actions",
+    "renameConversation": "Rename conversation {{title}}",
+    "exportConversation": "Export conversation {{title}}",
+    "deleteConversation": "Delete conversation {{title}}",
+    "messageLoaded": "Message loaded",
+    "conversationsNavigation": "Conversations navigation",
+    "chatInterface": "Chat interface",
+    "messagesList": "Messages list",
+    "conversationHistory": "Conversation history",
+    "encryptedBackups": "Encrypted backups",
+    "themesAndAppearance": "Themes and appearance settings",
+    "messageSent": "Message sent",
+    "responseReceived": "Response received from AI",
+    "requestStopped": "Request stopped by user",
+    "noConversationsYet": "No conversations yet"
+  },
+  "alerts": {
+    "unsavedChanges": "You have unsaved changes",
+    "confirmAction": "Are you sure?",
+    "actionCompleted": "Action completed successfully"
+  }
+}

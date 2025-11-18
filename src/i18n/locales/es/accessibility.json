@@ -1,0 +1,39 @@
+{
+  "accessibility": {
+    "title": "Accesibilidad",
+    "skipToContent": "Ir al contenido principal",
+    "skipToConversations": "Ir a conversaciones",
+    "keyboardShortcuts": "Atajos de Teclado",
+    "screenReader": "Lector de Pantalla"
+  },
+  "shortcuts": {
+    "newConversation": "Nueva Conversación",
+    "toggleSidebar": "Alternar Barra Lateral",
+    "focusInput": "Enfocar Entrada de Mensaje",
+    "commandPalette": "Abrir Paleta de Comandos",
+    "showShortcuts": "Mostrar Atajos de Teclado"
+  },
+  "a11y": {
+    "searchConversations": "Buscar conversaciones",
+    "conversationActions": "Acciones de conversación",
+    "renameConversation": "Renombrar conversación {{title}}",
+    "exportConversation": "Exportar conversación {{title}}",
+    "deleteConversation": "Eliminar conversación {{title}}",
+    "messageLoaded": "Mensaje cargado",
+    "conversationsNavigation": "Navegación de conversaciones",
+    "chatInterface": "Interfaz de chat",
+    "messagesList": "Lista de mensajes",
+    "conversationHistory": "Historial de conversaciones",
+    "encryptedBackups": "Respaldos encriptados",
+    "themesAndAppearance": "Configuración de temas y apariencia",
+    "messageSent": "Mensaje enviado",
+    "responseReceived": "Respuesta recibida de IA",
+    "requestStopped": "Solicitud detenida por el usuario",
+    "noConversationsYet": "Sin conversaciones aún"
+  },
+  "alerts": {
+    "unsavedChanges": "Tienes cambios sin guardar",
+    "confirmAction": "¿Estás seguro?",
+    "actionCompleted": "Acción completada exitosamente"
+  }
+}
