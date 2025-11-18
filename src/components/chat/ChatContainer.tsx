@@ -30,6 +30,10 @@ import { attachmentsService } from '../../services/attachments.service';
 import { documentParsingService } from '../../services/document.service';
 import { useChatState } from '../../store/chat.store';
 import type { IChatCompletionRequest } from '../../modules/adapters';
+// Phase 2: Cognitive Services Integration
+import { interactionMemoryBridgeService } from '../../services/interaction-memory-bridge.service';
+import { conversationEntityIntegrationService } from '../../services/conversation-entity-integration.service';
+import { goalEvaluationTriggerService } from '../../services/goal-evaluation-trigger.service';
 
 export function ChatContainer() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -112,6 +116,28 @@ export function ChatContainer() {
         const history = dbService.getConversationHistory(conversation.id);
         setMessages(history);
         console.log(`[ChatContainer] Loaded ${history.length} messages`);
+
+        // Phase 2: Initialize cognitive services
+        try {
+          await interactionMemoryBridgeService.initialize();
+          console.log('[ChatContainer] ✅ Interaction Memory Bridge initialized');
+        } catch (error) {
+          console.warn('[ChatContainer] Failed to initialize Interaction Memory Bridge:', error);
+        }
+
+        try {
+          await conversationEntityIntegrationService.initialize();
+          console.log('[ChatContainer] ✅ Conversation Entity Integration initialized');
+        } catch (error) {
+          console.warn('[ChatContainer] Failed to initialize Conversation Entity Integration:', error);
+        }
+
+        try {
+          await goalEvaluationTriggerService.initialize();
+          console.log('[ChatContainer] ✅ Goal Evaluation Trigger initialized');
+        } catch (error) {
+          console.warn('[ChatContainer] Failed to initialize Goal Evaluation Trigger:', error);
+        }
       } catch (error) {
         console.error('[ChatContainer] Initialization failed:', error);
       }
@@ -119,6 +145,36 @@ export function ChatContainer() {
 
     init();
   }, [loadConversations]);
+
+  // Phase 2: Periodic goal evaluation cycle
+  useEffect(() => {
+    if (!currentConversation) return;
+
+    const evaluateGoals = async () => {
+      try {
+        const result = await goalEvaluationTriggerService.evaluateCycle();
+
+        console.log('[ChatContainer] Goal evaluation cycle complete:', {
+          cycleId: result.cycleId,
+          goalsEvaluated: result.goalsEvaluated,
+          progressUpdates: result.progressUpdates,
+          completedGoals: result.goalsCompleted,
+          stalledGoals: result.stalledGoalsDetected,
+          autonomousTasksGenerated: result.autonomousTasksGenerated,
+        });
+      } catch (error) {
+        console.warn('[ChatContainer] Goal evaluation cycle failed:', error);
+      }
+    };
+
+    // Run goal evaluation immediately on conversation switch
+    evaluateGoals();
+
+    // Then run periodically every 5 minutes (300000ms)
+    const evaluationInterval = setInterval(evaluateGoals, 5 * 60 * 1000);
+
+    return () => clearInterval(evaluationInterval);
+  }, [currentConversation]);
 
   // Initialize the selected adapter when it changes
   useEffect(() => {
@@ -241,6 +297,48 @@ export function ChatContainer() {
         };
 
         setMessages(prev => [...prev, userMessage]);
+
+        // Phase 2: Record user message to memory bridge (async, non-blocking)
+        try {
+          await interactionMemoryBridgeService.recordMessage(
+            currentConversation.id,
+            'user',
+            content,
+            {
+              messageId: userMessageId,
+              timestamp: Date.now(),
+              hasAttachments: !!(imageFiles?.length || documentFiles?.length),
+              attachmentCount: (imageFiles?.length || 0) + (documentFiles?.length || 0),
+            }
+          );
+        } catch (error) {
+          console.warn('[ChatContainer] Failed to record user message to memory bridge:', error);
+          // Don't fail the conversation
+        }
+
+        // Phase 2: Process user message for entity extraction and learning
+        try {
+          const extractionResult = await conversationEntityIntegrationService.processUserMessage(
+            userMessageId,
+            content,
+            currentConversation.id,
+            {
+              timestamp: Date.now(),
+              messageIndex: messages.length,
+            }
+          );
+
+          console.log('[ChatContainer] User message learning:', {
+            entitiesFound: extractionResult.entitiesFound,
+            newEntities: extractionResult.newEntities,
+            insightsDiscovered: extractionResult.userInsightsDiscovered,
+            preferencesLearned: extractionResult.preferencesLearned,
+            goalsLinked: extractionResult.entitiesLinkedToGoals,
+          });
+        } catch (error) {
+          console.warn('[ChatContainer] Failed to process user message for learning:', error);
+          // Don't fail the conversation
+        }
 
         // STEP 2: Track governance metrics (ARI + RDI)
         // ARI: Autonomy Retention Index - measures user autonomy
@@ -447,6 +545,41 @@ export function ChatContainer() {
 
         setMessages(prev => [...prev, assistantMessage]);
         console.log('[ChatContainer] ✅ Response received and saved');
+
+        // Phase 2: Record agent message to memory bridge
+        try {
+          await interactionMemoryBridgeService.recordMessage(
+            currentConversation.id,
+            'assistant',
+            assistantContent,
+            {
+              messageId: assistantMessageId,
+              timestamp: Date.now(),
+              moduleUsed: selectedAdapterId,
+              hasAttachments: false,
+            }
+          );
+        } catch (error) {
+          console.warn('[ChatContainer] Failed to record agent message to memory bridge:', error);
+        }
+
+        // Phase 2: Process agent response for entity extraction and learning
+        try {
+          const extractionResult = await conversationEntityIntegrationService.processAgentResponse(
+            assistantMessageId,
+            assistantContent,
+            currentConversation.id,
+            selectedAdapterId
+          );
+
+          console.log('[ChatContainer] Agent response learning:', {
+            entitiesFound: extractionResult.entitiesFound,
+            newEntities: extractionResult.newEntities,
+            goalsLinked: extractionResult.entitiesLinkedToGoals,
+          });
+        } catch (error) {
+          console.warn('[ChatContainer] Failed to process agent response for learning:', error);
+        }
       } catch (error) {
         console.error('[ChatContainer] ❌ Failed to get response:', error);
 
