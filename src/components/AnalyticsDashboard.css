@@ -66,6 +66,19 @@
   transform: translateY(-1px);
 }
 
+.export-btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: transparent;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.export-btn-primary:hover {
+  background: linear-gradient(135deg, #7b8ef5 0%, #8a5bb7 100%);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  border-color: transparent;
+}
+
 .close-btn {
   width: 36px;
   height: 36px;

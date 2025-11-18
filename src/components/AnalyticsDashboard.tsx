@@ -13,6 +13,7 @@ import { useState, useEffect } from 'react';
 import { analyticsService, type AnalyticsReport } from '../services/analytics.service';
 import { LineChart } from './charts/LineChart';
 import { BarChart } from './charts/BarChart';
+import { ExportDialog } from './export/ExportDialog';
 import './AnalyticsDashboard.css';
 
 export interface AnalyticsDashboardProps {
@@ -23,6 +24,7 @@ export function AnalyticsDashboard({ onClose }: AnalyticsDashboardProps) {
   const [report, setReport] = useState<AnalyticsReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState<'overview' | 'trends' | 'usage' | 'privacy'>('overview');
+  const [showExportDialog, setShowExportDialog] = useState(false);
 
   useEffect(() => {
     // Generate analytics report
@@ -71,6 +73,13 @@ export function AnalyticsDashboard({ onClose }: AnalyticsDashboardProps) {
         <div className="analytics-header">
           <h2>📊 Analytics Dashboard</h2>
           <div className="analytics-actions">
+            <button
+              onClick={() => setShowExportDialog(true)}
+              className="export-btn export-btn-primary"
+              title="Advanced Export Options"
+            >
+              📦 Export
+            </button>
             <button onClick={handleExportJSON} className="export-btn" title="Export as JSON">
               📄 JSON
             </button>
@@ -365,6 +374,12 @@ export function AnalyticsDashboard({ onClose }: AnalyticsDashboardProps) {
           )}
         </div>
       </div>
+
+      {/* Export Dialog */}
+      <ExportDialog
+        isOpen={showExportDialog}
+        onClose={() => setShowExportDialog(false)}
+      />
     </div>
   );
 }
