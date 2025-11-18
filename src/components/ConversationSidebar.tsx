@@ -16,6 +16,8 @@ import { dbService, type Conversation } from '../services/db.service';
 import { searchService, type SearchResult } from '../services/search.service';
 import { attachmentsService } from '../services/attachments.service';
 import { SearchResults } from './SearchResults';
+import { ImportDialog } from './import/ImportDialog';
+import { BackupDialog } from './backup/BackupDialog';
 import './ConversationSidebar.css';
 
 export interface ConversationSidebarProps {
@@ -43,9 +45,17 @@ export function ConversationSidebar({
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showBackupDialog, setShowBackupDialog] = useState(false);
 
   const handleNewConversation = () => {
     onConversationCreate();
+  };
+
+  const handleImportComplete = (stats: any) => {
+    console.log('[ConversationSidebar] Import completed:', stats);
+    // Refresh conversation list
+    onConversationUpdate();
   };
 
   const handleSearch = async () => {
@@ -254,9 +264,18 @@ export function ConversationSidebar({
       <div className={`conversation-sidebar ${isOpen ? 'open' : 'closed'}`}>
         <div className="sidebar-header">
           <h2>Conversations</h2>
-          <button className="new-conversation-btn" onClick={handleNewConversation} title="New conversation">
-            ➕ New
-          </button>
+          <div className="sidebar-header-actions">
+            <button
+              className="import-conversation-btn"
+              onClick={() => setShowImportDialog(true)}
+              title="Import conversations from ChatGPT or Claude"
+            >
+              📥 Import
+            </button>
+            <button className="new-conversation-btn" onClick={handleNewConversation} title="New conversation">
+              ➕ New
+            </button>
+          </div>
         </div>
 
         {/* Search Bar (Sprint 11) */}
@@ -373,9 +392,18 @@ export function ConversationSidebar({
         </div>
 
         <div className="sidebar-footer">
-          <button className="export-all-btn" onClick={handleExportAll}>
-            📦 Export All
-          </button>
+          <div className="sidebar-footer-buttons">
+            <button className="export-all-btn" onClick={handleExportAll}>
+              📦 Export All
+            </button>
+            <button
+              className="backup-btn"
+              onClick={() => setShowBackupDialog(true)}
+              title="Encrypted Backups"
+            >
+              🔐 Backup
+            </button>
+          </div>
           <div className="sidebar-stats">
             {conversations.length} {conversations.length === 1 ? 'conversation' : 'conversations'}
           </div>
@@ -384,6 +412,19 @@ export function ConversationSidebar({
 
       {/* Overlay for mobile */}
       {isOpen && <div className="sidebar-overlay" onClick={onToggle} />}
+
+      {/* Import Dialog */}
+      <ImportDialog
+        isOpen={showImportDialog}
+        onClose={() => setShowImportDialog(false)}
+        onImportComplete={handleImportComplete}
+      />
+
+      {/* Backup Dialog */}
+      <BackupDialog
+        isOpen={showBackupDialog}
+        onClose={() => setShowBackupDialog(false)}
+      />
     </>
   );
 }
