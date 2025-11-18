@@ -135,6 +135,169 @@ export interface ConversationRelation {
   created_at: number;
 }
 
+/**
+ * Message sentiment analysis result
+ */
+export interface MessageSentiment {
+  id: string;
+  message_id: string;
+  sentiment_score: number; // -1 to 1: negative to positive
+  sentiment_label: 'negative' | 'neutral' | 'positive';
+  confidence: number; // 0 to 1
+  emotion_tags?: string; // comma-separated: joy, anger, sadness, fear, etc
+  analyzed_at: number;
+}
+
+/**
+ * Sentiment trend for a conversation
+ */
+export interface SentimentTrend {
+  conversation_id: string;
+  average_sentiment: number;
+  sentiment_distribution: {
+    negative: number;
+    neutral: number;
+    positive: number;
+  };
+  emotion_frequency: Record<string, number>;
+  trend_direction: 'improving' | 'declining' | 'stable';
+  last_updated: number;
+}
+
+/**
+ * Sentiment statistics across conversations or time periods
+ */
+export interface SentimentStats {
+  totalMessages: number;
+  analyzedMessages: number;
+  averageSentiment: number;
+  sentimentBreakdown: {
+    negative: number;
+    neutral: number;
+    positive: number;
+  };
+  topEmotions: Array<{ emotion: string; count: number }>;
+  sentimentTrend: 'improving' | 'declining' | 'stable';
+}
+
+/**
+ * Topic detected in a conversation
+ */
+export interface Topic {
+  id: string;
+  conversation_id: string;
+  name: string;
+  keywords: string; // comma-separated
+  message_count: number;
+  relevance_score: number; // 0 to 1
+  created_at: number;
+}
+
+/**
+ * Word frequency for word clouds
+ */
+export interface WordFrequency {
+  word: string;
+  frequency: number;
+  topic_id?: string;
+}
+
+/**
+ * Topic cluster grouping related topics
+ */
+export interface TopicCluster {
+  id: string;
+  conversation_id: string;
+  cluster_name: string;
+  topic_ids: string; // comma-separated
+  similarity_score: number; // 0 to 1
+  created_at: number;
+}
+
+/**
+ * Topic statistics for a conversation
+ */
+export interface TopicStats {
+  totalTopics: number;
+  topicDistribution: Array<{ name: string; messageCount: number; score: number }>;
+  topKeywords: Array<{ word: string; frequency: number }>;
+  topicClusters: number;
+  mainTopics: string[];
+}
+
+/**
+ * Time period comparison data
+ */
+export interface TimePeriodComparison {
+  period1Start: number;
+  period1End: number;
+  period2Start: number;
+  period2End: number;
+  period1Metrics: {
+    messageCount: number;
+    avgSentiment: number;
+    topicCount: number;
+  };
+  period2Metrics: {
+    messageCount: number;
+    avgSentiment: number;
+    topicCount: number;
+  };
+  changePercent: number;
+  trend: 'increasing' | 'decreasing' | 'stable';
+}
+
+/**
+ * Anomaly detection result
+ */
+export interface Anomaly {
+  id: string;
+  conversation_id: string;
+  timestamp: number;
+  anomaly_type: 'sentiment_spike' | 'topic_shift' | 'frequency_anomaly' | 'custom';
+  severity: 'low' | 'medium' | 'high';
+  description: string;
+  value: number;
+  threshold: number;
+  detected_at: number;
+}
+
+/**
+ * Trend analysis result
+ */
+export interface TrendAnalysis {
+  conversation_id: string;
+  metric: string; // e.g., 'sentiment', 'message_count', 'topic_diversity'
+  timeframe: string; // e.g., '7d', '30d', '90d'
+  dataPoints: Array<{ timestamp: number; value: number }>;
+  trend: 'upward' | 'downward' | 'stable';
+  slope: number; // Rate of change
+  correlation: number; // Correlation coefficient (0 to 1)
+  confidence: number; // Confidence in trend (0 to 1)
+  startValue: number;
+  endValue: number;
+  changePercent: number;
+  analyzedAt: number;
+}
+
+/**
+ * Comparative statistics across periods
+ */
+export interface ComparativeStats {
+  conversationId: string;
+  period1Label: string;
+  period2Label: string;
+  metrics: {
+    messageCount: { period1: number; period2: number; change: number };
+    avgSentiment: { period1: number; period2: number; change: number };
+    topicDiversity: { period1: number; period2: number; change: number };
+    activeHours: { period1: number; period2: number; change: number };
+  };
+  anomalyCount: number;
+  significantChanges: string[];
+  insights: string[];
+}
+
 class DatabaseService {
   private db: Database | null = null;
   private initialized = false;
@@ -353,6 +516,111 @@ class DatabaseService {
         )
       `);
 
+      // Message sentiment analysis table
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS message_sentiment (
+          id TEXT PRIMARY KEY,
+          message_id TEXT NOT NULL,
+          sentiment_score REAL NOT NULL,
+          sentiment_label TEXT NOT NULL CHECK(sentiment_label IN ('negative', 'neutral', 'positive')),
+          confidence REAL NOT NULL,
+          emotion_tags TEXT,
+          analyzed_at INTEGER NOT NULL,
+          FOREIGN KEY (message_id) REFERENCES chat_messages(id)
+        )
+      `);
+
+      // Conversation sentiment trends table (cached aggregations)
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS conversation_sentiment_trends (
+          conversation_id TEXT PRIMARY KEY,
+          average_sentiment REAL NOT NULL,
+          negative_count INTEGER NOT NULL DEFAULT 0,
+          neutral_count INTEGER NOT NULL DEFAULT 0,
+          positive_count INTEGER NOT NULL DEFAULT 0,
+          trend_direction TEXT NOT NULL CHECK(trend_direction IN ('improving', 'declining', 'stable')),
+          last_updated INTEGER NOT NULL,
+          FOREIGN KEY (conversation_id) REFERENCES conversations(id)
+        )
+      `);
+
+      // Topics table (auto-detected topics in conversations)
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS topics (
+          id TEXT PRIMARY KEY,
+          conversation_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          keywords TEXT NOT NULL,
+          message_count INTEGER NOT NULL,
+          relevance_score REAL NOT NULL,
+          created_at INTEGER NOT NULL,
+          FOREIGN KEY (conversation_id) REFERENCES conversations(id)
+        )
+      `);
+
+      // Word frequency table (for word clouds)
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS word_frequency (
+          id TEXT PRIMARY KEY,
+          conversation_id TEXT NOT NULL,
+          word TEXT NOT NULL,
+          frequency INTEGER NOT NULL,
+          topic_id TEXT,
+          created_at INTEGER NOT NULL,
+          FOREIGN KEY (conversation_id) REFERENCES conversations(id),
+          FOREIGN KEY (topic_id) REFERENCES topics(id)
+        )
+      `);
+
+      // Topic clusters table (grouping related topics)
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS topic_clusters (
+          id TEXT PRIMARY KEY,
+          conversation_id TEXT NOT NULL,
+          cluster_name TEXT NOT NULL,
+          topic_ids TEXT NOT NULL,
+          similarity_score REAL NOT NULL,
+          created_at INTEGER NOT NULL,
+          FOREIGN KEY (conversation_id) REFERENCES conversations(id)
+        )
+      `);
+
+      // Anomalies table (for anomaly detection results)
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS anomalies (
+          id TEXT PRIMARY KEY,
+          conversation_id TEXT NOT NULL,
+          timestamp INTEGER NOT NULL,
+          anomaly_type TEXT NOT NULL CHECK(anomaly_type IN ('sentiment_spike', 'topic_shift', 'frequency_anomaly', 'custom')),
+          severity TEXT NOT NULL CHECK(severity IN ('low', 'medium', 'high')),
+          description TEXT NOT NULL,
+          value REAL NOT NULL,
+          threshold REAL NOT NULL,
+          detected_at INTEGER NOT NULL,
+          FOREIGN KEY (conversation_id) REFERENCES conversations(id)
+        )
+      `);
+
+      // Trend analysis table (for storing trend data)
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS trend_analysis (
+          id TEXT PRIMARY KEY,
+          conversation_id TEXT NOT NULL,
+          metric TEXT NOT NULL,
+          timeframe TEXT NOT NULL,
+          trend TEXT NOT NULL CHECK(trend IN ('upward', 'downward', 'stable')),
+          slope REAL NOT NULL,
+          correlation REAL NOT NULL,
+          confidence REAL NOT NULL,
+          start_value REAL NOT NULL,
+          end_value REAL NOT NULL,
+          change_percent REAL NOT NULL,
+          data_points TEXT NOT NULL,
+          analyzed_at INTEGER NOT NULL,
+          FOREIGN KEY (conversation_id) REFERENCES conversations(id)
+        )
+      `);
+
       // Create indexes for better query performance
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_tags_conversation ON conversation_tags(conversation_id)`);
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_tags_tag ON conversation_tags(tag_id)`);
@@ -365,6 +633,22 @@ class DatabaseService {
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_branches_parent ON conversation_branches(parent_conversation_id)`);
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_relations_source ON conversation_relations(source_conversation_id)`);
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_relations_target ON conversation_relations(target_conversation_id)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_message_sentiment_message ON message_sentiment(message_id)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_message_sentiment_label ON message_sentiment(sentiment_label)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_sentiment_trends_conversation ON conversation_sentiment_trends(conversation_id)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_topics_conversation ON topics(conversation_id)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_topics_relevance ON topics(relevance_score)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_word_frequency_conversation ON word_frequency(conversation_id)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_word_frequency_topic ON word_frequency(topic_id)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_word_frequency_word ON word_frequency(word)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_topic_clusters_conversation ON topic_clusters(conversation_id)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_topic_clusters_similarity ON topic_clusters(similarity_score)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_anomalies_conversation ON anomalies(conversation_id)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_anomalies_type ON anomalies(anomaly_type)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_anomalies_severity ON anomalies(severity)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_trend_analysis_conversation ON trend_analysis(conversation_id)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_trend_analysis_metric ON trend_analysis(metric)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_trend_analysis_timeframe ON trend_analysis(timeframe)`);
 
       console.log('[DB] ✅ Database schema created successfully');
     } catch (error) {
@@ -2287,6 +2571,822 @@ class DatabaseService {
       branchCount,
       relationCount,
       hasParent: !!parentBranch
+    };
+  }
+
+  /**
+   * Create a topic in a conversation
+   * @param conversationId Conversation ID
+   * @param name Topic name
+   * @param keywords Comma-separated keywords
+   * @param messageCount Number of messages containing this topic
+   * @param relevanceScore Relevance score (0 to 1)
+   * @returns Created topic
+   */
+  createTopic(
+    conversationId: string,
+    name: string,
+    keywords: string,
+    messageCount: number,
+    relevanceScore: number
+  ): Topic {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const topicId = `topic-${crypto.randomUUID()}`;
+
+    this.db.run(
+      `INSERT INTO topics (id, conversation_id, name, keywords, message_count, relevance_score, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [topicId, conversationId, name, keywords, messageCount, relevanceScore, Date.now()]
+    );
+
+    // Auto-save
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Created topic ${topicId} in conversation ${conversationId}`);
+
+    return {
+      id: topicId,
+      conversation_id: conversationId,
+      name,
+      keywords,
+      message_count: messageCount,
+      relevance_score: relevanceScore,
+      created_at: Date.now()
+    };
+  }
+
+  /**
+   * Get all topics in a conversation
+   * @param conversationId Conversation ID
+   * @returns Array of topics
+   */
+  getTopics(conversationId: string): Topic[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    return this.query<Topic>(
+      `SELECT id, conversation_id, name, keywords, message_count, relevance_score, created_at
+       FROM topics
+       WHERE conversation_id = ?
+       ORDER BY relevance_score DESC`,
+      [conversationId]
+    );
+  }
+
+  /**
+   * Get topic by ID
+   * @param topicId Topic ID
+   * @returns Topic or null
+   */
+  getTopic(topicId: string): Topic | null {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const result = this.query<Topic>(
+      'SELECT id, conversation_id, name, keywords, message_count, relevance_score, created_at FROM topics WHERE id = ?',
+      [topicId]
+    );
+
+    return result[0] || null;
+  }
+
+  /**
+   * Update topic
+   * @param topicId Topic ID
+   * @param updates Partial topic updates
+   * @returns Updated topic
+   */
+  updateTopic(topicId: string, updates: Partial<Topic>): Topic {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const topic = this.getTopic(topicId);
+    if (!topic) {
+      throw new Error(`Topic not found: ${topicId}`);
+    }
+
+    const updated = { ...topic, ...updates };
+
+    this.db.run(
+      `UPDATE topics SET name = ?, keywords = ?, message_count = ?, relevance_score = ?
+       WHERE id = ?`,
+      [updated.name, updated.keywords, updated.message_count, updated.relevance_score, topicId]
+    );
+
+    // Auto-save
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Updated topic ${topicId}`);
+
+    return updated;
+  }
+
+  /**
+   * Delete topic
+   * @param topicId Topic ID
+   * @returns True if deleted, false if not found
+   */
+  deleteTopic(topicId: string): boolean {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const topic = this.getTopic(topicId);
+    if (!topic) {
+      return false;
+    }
+
+    // Delete associated word frequencies
+    this.db.run('DELETE FROM word_frequency WHERE topic_id = ?', [topicId]);
+
+    // Delete topic
+    this.db.run('DELETE FROM topics WHERE id = ?', [topicId]);
+
+    // Auto-save
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Deleted topic ${topicId}`);
+
+    return true;
+  }
+
+  /**
+   * Record word frequency
+   * @param conversationId Conversation ID
+   * @param word Word
+   * @param frequency Frequency count
+   * @param topicId Optional topic ID
+   * @returns Created record ID
+   */
+  recordWordFrequency(
+    conversationId: string,
+    word: string,
+    frequency: number,
+    topicId?: string
+  ): string {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const recordId = `wf-${crypto.randomUUID()}`;
+
+    this.db.run(
+      `INSERT INTO word_frequency (id, conversation_id, word, frequency, topic_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [recordId, conversationId, word.toLowerCase(), frequency, topicId || null, Date.now()]
+    );
+
+    // Auto-save
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    return recordId;
+  }
+
+  /**
+   * Get word frequencies for a conversation
+   * @param conversationId Conversation ID
+   * @param limit Maximum number of results
+   * @returns Array of word frequencies
+   */
+  getWordFrequencies(conversationId: string, limit: number = 100): WordFrequency[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    return this.query<WordFrequency>(
+      `SELECT word, frequency, topic_id
+       FROM word_frequency
+       WHERE conversation_id = ?
+       ORDER BY frequency DESC
+       LIMIT ?`,
+      [conversationId, limit]
+    );
+  }
+
+  /**
+   * Get word frequencies for a specific topic
+   * @param topicId Topic ID
+   * @returns Array of word frequencies
+   */
+  getTopicWords(topicId: string): WordFrequency[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    return this.query<WordFrequency>(
+      `SELECT word, frequency, topic_id
+       FROM word_frequency
+       WHERE topic_id = ?
+       ORDER BY frequency DESC`,
+      [topicId]
+    );
+  }
+
+  /**
+   * Create a topic cluster
+   * @param conversationId Conversation ID
+   * @param clusterName Cluster name
+   * @param topicIds Comma-separated topic IDs
+   * @param similarityScore Similarity score (0 to 1)
+   * @returns Created cluster
+   */
+  createTopicCluster(
+    conversationId: string,
+    clusterName: string,
+    topicIds: string,
+    similarityScore: number
+  ): TopicCluster {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const clusterId = `cluster-${crypto.randomUUID()}`;
+
+    this.db.run(
+      `INSERT INTO topic_clusters (id, conversation_id, cluster_name, topic_ids, similarity_score, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [clusterId, conversationId, clusterName, topicIds, similarityScore, Date.now()]
+    );
+
+    // Auto-save
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Created topic cluster ${clusterId} in conversation ${conversationId}`);
+
+    return {
+      id: clusterId,
+      conversation_id: conversationId,
+      cluster_name: clusterName,
+      topic_ids: topicIds,
+      similarity_score: similarityScore,
+      created_at: Date.now()
+    };
+  }
+
+  /**
+   * Get all topic clusters in a conversation
+   * @param conversationId Conversation ID
+   * @returns Array of clusters
+   */
+  getTopicClusters(conversationId: string): TopicCluster[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    return this.query<TopicCluster>(
+      `SELECT id, conversation_id, cluster_name, topic_ids, similarity_score, created_at
+       FROM topic_clusters
+       WHERE conversation_id = ?
+       ORDER BY similarity_score DESC`,
+      [conversationId]
+    );
+  }
+
+  /**
+   * Delete topic cluster
+   * @param clusterId Cluster ID
+   * @returns True if deleted, false if not found
+   */
+  deleteTopicCluster(clusterId: string): boolean {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const result = this.query<{ id: string }>(
+      'SELECT id FROM topic_clusters WHERE id = ?',
+      [clusterId]
+    );
+
+    if (result.length === 0) {
+      return false;
+    }
+
+    this.db.run('DELETE FROM topic_clusters WHERE id = ?', [clusterId]);
+
+    // Auto-save
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Deleted topic cluster ${clusterId}`);
+
+    return true;
+  }
+
+  /**
+   * Calculate topic statistics for a conversation
+   * @param conversationId Conversation ID
+   * @returns Topic statistics
+   */
+  getTopicStats(conversationId: string): TopicStats {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const topics = this.getTopics(conversationId);
+    const wordFreqs = this.getWordFrequencies(conversationId, 20);
+    const clusters = this.getTopicClusters(conversationId);
+
+    const topicDistribution = topics.map(topic => ({
+      name: topic.name,
+      messageCount: topic.message_count,
+      score: topic.relevance_score
+    }));
+
+    const topKeywords = wordFreqs.map(wf => ({
+      word: wf.word,
+      frequency: wf.frequency
+    }));
+
+    const mainTopics = topics
+      .sort((a, b) => b.relevance_score - a.relevance_score)
+      .slice(0, 5)
+      .map(t => t.name);
+
+    return {
+      totalTopics: topics.length,
+      topicDistribution,
+      topKeywords,
+      topicClusters: clusters.length,
+      mainTopics
+    };
+  }
+
+  /**
+   * Auto-detect topics from conversation messages
+   * Uses keyword extraction and frequency analysis
+   * @param conversationId Conversation ID
+   * @param minRelevance Minimum relevance score threshold (0 to 1)
+   * @returns Array of auto-detected topics
+   */
+  autoDetectTopics(conversationId: string, minRelevance: number = 0.3): Topic[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    // Get all messages
+    const messages = this.getConversationHistory(conversationId);
+    if (messages.length === 0) {
+      return [];
+    }
+
+    // Extract keywords from messages
+    const keywordMap = new Map<string, number>();
+    const stopWords = new Set([
+      'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from',
+      'as', 'is', 'was', 'are', 'been', 'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would',
+      'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'i', 'you',
+      'he', 'she', 'it', 'we', 'they', 'what', 'which', 'who', 'when', 'where', 'why', 'how'
+    ]);
+
+    for (const msg of messages) {
+      const words = msg.content.toLowerCase()
+        .replace(/[^\w\s]/g, '')
+        .split(/\s+/)
+        .filter(word => word.length > 3 && !stopWords.has(word));
+
+      for (const word of words) {
+        keywordMap.set(word, (keywordMap.get(word) || 0) + 1);
+      }
+    }
+
+    // Sort by frequency
+    const sortedKeywords = Array.from(keywordMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20);
+
+    const maxFrequency = sortedKeywords[0]?.[1] || 1;
+
+    // Create topics from top keywords
+    const topics: Topic[] = [];
+    for (const [keyword, frequency] of sortedKeywords) {
+      const relevanceScore = Math.min(1, frequency / maxFrequency * 0.8 + 0.2);
+
+      if (relevanceScore >= minRelevance) {
+        const topic = this.createTopic(
+          conversationId,
+          keyword.charAt(0).toUpperCase() + keyword.slice(1),
+          keyword,
+          frequency,
+          relevanceScore
+        );
+        topics.push(topic);
+
+        // Record word frequency
+        this.recordWordFrequency(conversationId, keyword, frequency, topic.id);
+      }
+    }
+
+    // Auto-cluster topics if there are many
+    if (topics.length > 5) {
+      this.autoClusterTopics(conversationId, topics);
+    }
+
+    console.log(`[DB] Auto-detected ${topics.length} topics in conversation ${conversationId}`);
+
+    return topics;
+  }
+
+  /**
+   * Auto-cluster topics by similarity
+   * Groups topics with similar keywords together
+   * @param conversationId Conversation ID
+   * @param topics Topics to cluster
+   */
+  private autoClusterTopics(conversationId: string, topics: Topic[]): void {
+    if (topics.length < 2) return;
+
+    const processed = new Set<string>();
+
+    for (let i = 0; i < topics.length; i++) {
+      if (processed.has(topics[i].id)) continue;
+
+      const cluster = [topics[i].id];
+      processed.add(topics[i].id);
+
+      // Simple similarity: same first letter or keyword overlap
+      const topicKeywords = new Set(topics[i].keywords.split(','));
+
+      for (let j = i + 1; j < topics.length; j++) {
+        if (processed.has(topics[j].id)) continue;
+
+        const otherKeywords = new Set(topics[j].keywords.split(','));
+        const intersection = new Set([...topicKeywords].filter(k => otherKeywords.has(k)));
+        const similarity = intersection.size > 0 ? 0.7 : 0;
+
+        if (similarity > 0.3) {
+          cluster.push(topics[j].id);
+          processed.add(topics[j].id);
+        }
+      }
+
+      if (cluster.length > 1) {
+        const clusterNames = cluster
+          .map(id => topics.find(t => t.id === id)?.name || 'Unknown')
+          .join(', ');
+
+        const avgSimilarity = 0.6; // Simplified
+
+        this.createTopicCluster(
+          conversationId,
+          `Cluster: ${clusterNames}`,
+          cluster.join(','),
+          avgSimilarity
+        );
+      }
+    }
+  }
+
+  // ===== COMPARATIVE ANALYTICS METHODS =====
+
+  /**
+   * Record an anomaly
+   * @param conversationId Conversation ID
+   * @param timestamp Timestamp of anomaly
+   * @param anomalyType Type of anomaly
+   * @param severity Severity level
+   * @param description Description of anomaly
+   * @param value Actual value
+   * @param threshold Threshold value
+   * @returns Created anomaly
+   */
+  recordAnomaly(
+    conversationId: string,
+    timestamp: number,
+    anomalyType: 'sentiment_spike' | 'topic_shift' | 'frequency_anomaly' | 'custom',
+    severity: 'low' | 'medium' | 'high',
+    description: string,
+    value: number,
+    threshold: number
+  ): Anomaly {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const anomalyId = `anom-${crypto.randomUUID()}`;
+
+    this.db.run(
+      `INSERT INTO anomalies (id, conversation_id, timestamp, anomaly_type, severity, description, value, threshold, detected_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [anomalyId, conversationId, timestamp, anomalyType, severity, description, value, threshold, Date.now()]
+    );
+
+    // Auto-save
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    return {
+      id: anomalyId,
+      conversation_id: conversationId,
+      timestamp,
+      anomaly_type: anomalyType,
+      severity,
+      description,
+      value,
+      threshold,
+      detected_at: Date.now()
+    };
+  }
+
+  /**
+   * Get anomalies for a conversation
+   * @param conversationId Conversation ID
+   * @param severityFilter Optional severity filter
+   * @returns Array of anomalies
+   */
+  getAnomalies(conversationId: string, severityFilter?: 'low' | 'medium' | 'high'): Anomaly[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    let sql = `SELECT id, conversation_id, timestamp, anomaly_type, severity, description, value, threshold, detected_at
+               FROM anomalies
+               WHERE conversation_id = ?`;
+    const params: any[] = [conversationId];
+
+    if (severityFilter) {
+      sql += ' AND severity = ?';
+      params.push(severityFilter);
+    }
+
+    sql += ' ORDER BY detected_at DESC';
+
+    return this.query<Anomaly>(sql, params);
+  }
+
+  /**
+   * Delete anomaly
+   * @param anomalyId Anomaly ID
+   * @returns True if deleted, false if not found
+   */
+  deleteAnomaly(anomalyId: string): boolean {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const result = this.query<{ id: string }>(
+      'SELECT id FROM anomalies WHERE id = ?',
+      [anomalyId]
+    );
+
+    if (result.length === 0) {
+      return false;
+    }
+
+    this.db.run('DELETE FROM anomalies WHERE id = ?', [anomalyId]);
+
+    // Auto-save
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    return true;
+  }
+
+  /**
+   * Record trend analysis
+   * @param conversationId Conversation ID
+   * @param metric Metric name
+   * @param timeframe Timeframe (e.g., '7d', '30d')
+   * @param dataPoints Array of timestamp-value pairs
+   * @param trend Trend direction
+   * @param slope Rate of change
+   * @param correlation Correlation coefficient
+   * @param confidence Confidence level
+   * @returns Created trend analysis
+   */
+  recordTrendAnalysis(
+    conversationId: string,
+    metric: string,
+    timeframe: string,
+    dataPoints: Array<{ timestamp: number; value: number }>,
+    trend: 'upward' | 'downward' | 'stable',
+    slope: number,
+    correlation: number,
+    confidence: number
+  ): TrendAnalysis {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const trendId = `trend-${crypto.randomUUID()}`;
+    const startValue = dataPoints.length > 0 ? dataPoints[0].value : 0;
+    const endValue = dataPoints.length > 0 ? dataPoints[dataPoints.length - 1].value : 0;
+    const changePercent = startValue !== 0 ? ((endValue - startValue) / Math.abs(startValue)) * 100 : 0;
+
+    this.db.run(
+      `INSERT INTO trend_analysis (id, conversation_id, metric, timeframe, trend, slope, correlation, confidence, start_value, end_value, change_percent, data_points, analyzed_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        trendId,
+        conversationId,
+        metric,
+        timeframe,
+        trend,
+        slope,
+        correlation,
+        confidence,
+        startValue,
+        endValue,
+        changePercent,
+        JSON.stringify(dataPoints),
+        Date.now()
+      ]
+    );
+
+    // Auto-save
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    return {
+      conversation_id: conversationId,
+      metric,
+      timeframe,
+      dataPoints,
+      trend,
+      slope,
+      correlation,
+      confidence,
+      startValue,
+      endValue,
+      changePercent,
+      analyzedAt: Date.now()
+    };
+  }
+
+  /**
+   * Get trend analysis for a conversation
+   * @param conversationId Conversation ID
+   * @param metric Optional metric filter
+   * @returns Array of trend analyses
+   */
+  getTrendAnalyses(conversationId: string, metric?: string): TrendAnalysis[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    let sql = `SELECT conversation_id, metric, timeframe, trend, slope, correlation, confidence, start_value as startValue,
+                      end_value as endValue, change_percent as changePercent, data_points, analyzed_at as analyzedAt
+               FROM trend_analysis
+               WHERE conversation_id = ?`;
+    const params: any[] = [conversationId];
+
+    if (metric) {
+      sql += ' AND metric = ?';
+      params.push(metric);
+    }
+
+    sql += ' ORDER BY analyzed_at DESC';
+
+    const rows = this.query<any>(sql, params);
+
+    return rows.map(row => ({
+      conversation_id: row.conversation_id,
+      metric: row.metric,
+      timeframe: row.timeframe,
+      dataPoints: JSON.parse(row.data_points),
+      trend: row.trend,
+      slope: row.slope,
+      correlation: row.correlation,
+      confidence: row.confidence,
+      startValue: row.startValue,
+      endValue: row.endValue,
+      changePercent: row.changePercent,
+      analyzedAt: row.analyzedAt
+    }));
+  }
+
+  /**
+   * Compare two time periods for a conversation
+   * @param conversationId Conversation ID
+   * @param period1Start Start of period 1
+   * @param period1End End of period 1
+   * @param period2Start Start of period 2
+   * @param period2End End of period 2
+   * @returns Comparison data
+   */
+  compareTimePeriods(
+    conversationId: string,
+    period1Start: number,
+    period1End: number,
+    period2Start: number,
+    period2End: number
+  ): TimePeriodComparison {
+    if (!this.db) throw new Error('Database not initialized');
+
+    // Get messages for each period
+    const period1Messages = this.query<any>(
+      `SELECT COUNT(*) as count FROM chat_messages
+       WHERE conversation_id = ? AND timestamp >= ? AND timestamp <= ?`,
+      [conversationId, period1Start, period1End]
+    )[0]?.count || 0;
+
+    const period2Messages = this.query<any>(
+      `SELECT COUNT(*) as count FROM chat_messages
+       WHERE conversation_id = ? AND timestamp >= ? AND timestamp <= ?`,
+      [conversationId, period2Start, period2End]
+    )[0]?.count || 0;
+
+    // Get sentiment for each period
+    const period1Sentiment = this.query<any>(
+      `SELECT AVG(CAST(sentiment_score AS REAL)) as avg_score FROM message_sentiment ms
+       JOIN chat_messages cm ON ms.message_id = cm.id
+       WHERE cm.conversation_id = ? AND cm.timestamp >= ? AND cm.timestamp <= ?`,
+      [conversationId, period1Start, period1End]
+    )[0]?.avg_score || 0;
+
+    const period2Sentiment = this.query<any>(
+      `SELECT AVG(CAST(sentiment_score AS REAL)) as avg_score FROM message_sentiment ms
+       JOIN chat_messages cm ON ms.message_id = cm.id
+       WHERE cm.conversation_id = ? AND cm.timestamp >= ? AND cm.timestamp <= ?`,
+      [conversationId, period2Start, period2End]
+    )[0]?.avg_score || 0;
+
+    // Get topic counts
+    const period1Topics = this.query<any>(
+      `SELECT COUNT(DISTINCT name) as count FROM topics
+       WHERE conversation_id = ? AND created_at >= ? AND created_at <= ?`,
+      [conversationId, period1Start, period1End]
+    )[0]?.count || 0;
+
+    const period2Topics = this.query<any>(
+      `SELECT COUNT(DISTINCT name) as count FROM topics
+       WHERE conversation_id = ? AND created_at >= ? AND created_at <= ?`,
+      [conversationId, period2Start, period2End]
+    )[0]?.count || 0;
+
+    const changePercent = period1Messages > 0
+      ? ((period2Messages - period1Messages) / period1Messages) * 100
+      : 0;
+
+    const trend = changePercent > 5 ? 'increasing' : changePercent < -5 ? 'decreasing' : 'stable';
+
+    return {
+      period1Start,
+      period1End,
+      period2Start,
+      period2End,
+      period1Metrics: {
+        messageCount: period1Messages,
+        avgSentiment: parseFloat(period1Sentiment),
+        topicCount: period1Topics
+      },
+      period2Metrics: {
+        messageCount: period2Messages,
+        avgSentiment: parseFloat(period2Sentiment),
+        topicCount: period2Topics
+      },
+      changePercent,
+      trend
+    };
+  }
+
+  /**
+   * Generate comparative statistics
+   * @param conversationId Conversation ID
+   * @param period1Start Start of period 1
+   * @param period1End End of period 1
+   * @param period2Start Start of period 2
+   * @param period2End End of period 2
+   * @returns Comparative statistics
+   */
+  getComparativeStats(
+    conversationId: string,
+    period1Start: number,
+    period1End: number,
+    period2Start: number,
+    period2End: number
+  ): ComparativeStats {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const comparison = this.compareTimePeriods(conversationId, period1Start, period1End, period2Start, period2End);
+    const anomalies = this.getAnomalies(conversationId);
+    const trends = this.getTrendAnalyses(conversationId);
+
+    const messageCountChange = comparison.period2Metrics.messageCount - comparison.period1Metrics.messageCount;
+    const sentimentChange = comparison.period2Metrics.avgSentiment - comparison.period1Metrics.avgSentiment;
+    const topicChange = comparison.period2Metrics.topicCount - comparison.period1Metrics.topicCount;
+
+    const significantChanges: string[] = [];
+    if (Math.abs(messageCountChange) > 5) {
+      significantChanges.push(`Message count changed by ${messageCountChange > 0 ? '+' : ''}${messageCountChange}`);
+    }
+    if (Math.abs(sentimentChange) > 0.2) {
+      significantChanges.push(`Average sentiment ${sentimentChange > 0 ? 'improved' : 'declined'} by ${Math.abs(sentimentChange).toFixed(2)}`);
+    }
+    if (Math.abs(topicChange) > 0) {
+      significantChanges.push(`Topic count changed by ${topicChange > 0 ? '+' : ''}${topicChange}`);
+    }
+
+    const insights: string[] = [];
+    if (comparison.trend === 'increasing') {
+      insights.push('Conversation activity is increasing');
+    } else if (comparison.trend === 'decreasing') {
+      insights.push('Conversation activity is decreasing');
+    } else {
+      insights.push('Conversation activity is stable');
+    }
+
+    if (anomalies.length > 0) {
+      const highSeverity = anomalies.filter(a => a.severity === 'high').length;
+      if (highSeverity > 0) {
+        insights.push(`${highSeverity} high-severity anomalies detected`);
+      }
+    }
+
+    return {
+      conversationId,
+      period1Label: new Date(period1Start).toISOString().split('T')[0],
+      period2Label: new Date(period2Start).toISOString().split('T')[0],
+      metrics: {
+        messageCount: {
+          period1: comparison.period1Metrics.messageCount,
+          period2: comparison.period2Metrics.messageCount,
+          change: messageCountChange
+        },
+        avgSentiment: {
+          period1: comparison.period1Metrics.avgSentiment,
+          period2: comparison.period2Metrics.avgSentiment,
+          change: sentimentChange
+        },
+        topicDiversity: {
+          period1: comparison.period1Metrics.topicCount,
+          period2: comparison.period2Metrics.topicCount,
+          change: topicChange
+        },
+        activeHours: {
+          period1: 24, // Simplified
+          period2: 24, // Simplified
+          change: 0
+        }
+      },
+      anomalyCount: anomalies.length,
+      significantChanges,
+      insights
     };
   }
 
