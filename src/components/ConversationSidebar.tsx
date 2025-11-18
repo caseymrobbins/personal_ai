@@ -14,6 +14,7 @@
 import { useState } from 'react';
 import { dbService, type Conversation } from '../services/db.service';
 import { searchService, type SearchResult } from '../services/search.service';
+import { attachmentsService } from '../services/attachments.service';
 import { SearchResults } from './SearchResults';
 import './ConversationSidebar.css';
 
@@ -123,7 +124,7 @@ export function ConversationSidebar({
     // Get all messages for this conversation
     const messages = dbService.getConversationHistory(conversation.id);
 
-    // Create export object
+    // Create export object with attachments
     const exportData = {
       conversation: {
         id: conversation.id,
@@ -131,14 +132,28 @@ export function ConversationSidebar({
         created_at: conversation.created_at,
         created_date: new Date(conversation.created_at).toISOString(),
       },
-      messages: messages.map(msg => ({
-        id: msg.id,
-        role: msg.role,
-        content: msg.content,
-        module_used: msg.module_used,
-        timestamp: msg.timestamp,
-        timestamp_date: new Date(msg.timestamp).toISOString(),
-      })),
+      messages: messages.map(msg => {
+        // Get attachments for this message
+        const attachments = attachmentsService.getMessageAttachments(msg.id);
+
+        return {
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          module_used: msg.module_used,
+          timestamp: msg.timestamp,
+          timestamp_date: new Date(msg.timestamp).toISOString(),
+          attachments: attachments.map(att => ({
+            id: att.id,
+            type: att.type,
+            mime_type: att.mime_type,
+            filename: att.filename,
+            data: att.data, // base64 encoded
+            size: att.size,
+            created_at: att.created_at,
+          })),
+        };
+      }),
       exported_at: new Date().toISOString(),
       exported_by: 'SML Guardian',
     };
@@ -160,7 +175,7 @@ export function ConversationSidebar({
       return;
     }
 
-    // Get all conversations and their messages
+    // Get all conversations and their messages with attachments
     const allConversations = conversations.map(conv => ({
       conversation: {
         id: conv.id,
@@ -168,14 +183,28 @@ export function ConversationSidebar({
         created_at: conv.created_at,
         created_date: new Date(conv.created_at).toISOString(),
       },
-      messages: dbService.getConversationHistory(conv.id).map(msg => ({
-        id: msg.id,
-        role: msg.role,
-        content: msg.content,
-        module_used: msg.module_used,
-        timestamp: msg.timestamp,
-        timestamp_date: new Date(msg.timestamp).toISOString(),
-      })),
+      messages: dbService.getConversationHistory(conv.id).map(msg => {
+        // Get attachments for this message
+        const attachments = attachmentsService.getMessageAttachments(msg.id);
+
+        return {
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          module_used: msg.module_used,
+          timestamp: msg.timestamp,
+          timestamp_date: new Date(msg.timestamp).toISOString(),
+          attachments: attachments.map(att => ({
+            id: att.id,
+            type: att.type,
+            mime_type: att.mime_type,
+            filename: att.filename,
+            data: att.data, // base64 encoded
+            size: att.size,
+            created_at: att.created_at,
+          })),
+        };
+      }),
     }));
 
     const exportData = {
