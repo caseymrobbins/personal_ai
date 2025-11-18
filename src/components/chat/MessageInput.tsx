@@ -4,8 +4,9 @@
  * Chat input box with send button and image attachment support
  */
 
-import { useState, KeyboardEvent, useRef, ChangeEvent } from 'react';
+import { useState, KeyboardEvent, useRef, ChangeEvent, useEffect } from 'react';
 import { attachmentsService } from '../../services/attachments.service';
+import { voiceService, type VoiceServiceEvent } from '../../services/voice.service';
 import './MessageInput.css';
 
 export interface MessageInputProps {
@@ -23,7 +24,52 @@ export function MessageInput({
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [validationError, setValidationError] = useState<string>('');
+  const [isListening, setIsListening] = useState(false);
+  const [interimTranscript, setInterimTranscript] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Check voice support
+  const voiceSupported = voiceService.isSpeechRecognitionSupported();
+
+  // Set up voice event listeners
+  useEffect(() => {
+    const handleVoiceEvent = (event: VoiceServiceEvent) => {
+      switch (event.type) {
+        case 'stt-start':
+          setIsListening(true);
+          setInterimTranscript('');
+          break;
+
+        case 'stt-result':
+          if (event.result.isFinal) {
+            // Append final result to message
+            setMessage(prev => {
+              const newText = prev ? `${prev} ${event.result.transcript}` : event.result.transcript;
+              return newText.trim();
+            });
+            setInterimTranscript('');
+          } else {
+            // Show interim result
+            setInterimTranscript(event.result.transcript);
+          }
+          break;
+
+        case 'stt-end':
+          setIsListening(false);
+          setInterimTranscript('');
+          break;
+
+        case 'stt-error':
+          setIsListening(false);
+          setInterimTranscript('');
+          console.error('[MessageInput] Voice error:', event.error);
+          break;
+      }
+    };
+
+    voiceService.addEventListener(handleVoiceEvent);
+    return () => voiceService.removeEventListener(handleVoiceEvent);
+  }, []);
 
   const handleSend = () => {
     const trimmed = message.trim();
@@ -94,6 +140,14 @@ export function MessageInput({
     setValidationError('');
   };
 
+  const toggleVoiceInput = () => {
+    if (isListening) {
+      voiceService.stopListening();
+    } else {
+      voiceService.startListening();
+    }
+  };
+
   return (
     <div className="message-input-wrapper">
       {/* Image Previews */}
@@ -122,6 +176,13 @@ export function MessageInput({
         </div>
       )}
 
+      {/* Interim Transcript (voice recognition in progress) */}
+      {interimTranscript && (
+        <div className="interim-transcript">
+          🎤 {interimTranscript}
+        </div>
+      )}
+
       <div className="message-input-container">
         {/* Hidden file input */}
         <input
@@ -144,6 +205,19 @@ export function MessageInput({
         >
           📎
         </button>
+
+        {/* Voice input button */}
+        {voiceSupported && (
+          <button
+            className={`voice-button ${isListening ? 'listening' : ''}`}
+            onClick={toggleVoiceInput}
+            disabled={disabled}
+            aria-label={isListening ? 'Stop recording' : 'Start voice input'}
+            type="button"
+          >
+            {isListening ? '🔴' : '🎤'}
+          </button>
+        )}
 
         <textarea
           className="message-input"

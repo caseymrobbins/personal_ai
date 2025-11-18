@@ -41,6 +41,46 @@
   font-weight: 600;
 }
 
+.message-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tts-button {
+  padding: 0.25rem 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tts-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #667eea;
+  transform: scale(1.1);
+}
+
+.tts-button.speaking {
+  background: rgba(102, 126, 234, 0.2);
+  border-color: #667eea;
+  animation: speaking-pulse 1s ease-in-out infinite;
+}
+
+@keyframes speaking-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
 .message-time {
   font-size: 0.75rem;
 }
