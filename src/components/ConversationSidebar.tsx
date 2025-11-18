@@ -19,6 +19,7 @@ import { SearchResults } from './SearchResults';
 import { ImportDialog } from './import/ImportDialog';
 import { BackupDialog } from './backup/BackupDialog';
 import { ThemeDialog } from './theme/ThemeDialog';
+import { ShareDialog } from './p2p/ShareDialog';
 import './ConversationSidebar.css';
 
 export interface ConversationSidebarProps {
@@ -49,6 +50,9 @@ export function ConversationSidebar({
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showBackupDialog, setShowBackupDialog] = useState(false);
   const [showThemeDialog, setShowThemeDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [shareConversationId, setShareConversationId] = useState<string | null>(null);
+  const [shareConversationTitle, setShareConversationTitle] = useState('');
 
   const handleNewConversation = () => {
     onConversationCreate();
@@ -180,6 +184,12 @@ export function ConversationSidebar({
     a.download = `conversation-${conversation.title.replace(/[^a-z0-9]/gi, '-')}-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleShare = (conversation: Conversation) => {
+    setShareConversationId(conversation.id);
+    setShareConversationTitle(conversation.title);
+    setShowShareDialog(true);
   };
 
   const handleExportAll = () => {
@@ -394,6 +404,13 @@ export function ConversationSidebar({
                         <span aria-hidden="true">✏️</span>
                       </button>
                       <button
+                        onClick={() => handleShare(conversation)}
+                        className="conversation-action-btn"
+                        aria-label={`Share conversation ${conversation.title}`}
+                      >
+                        <span aria-hidden="true">🔗</span>
+                      </button>
+                      <button
                         onClick={() => handleExport(conversation)}
                         className="conversation-action-btn"
                         aria-label={`Export conversation ${conversation.title}`}
@@ -466,6 +483,20 @@ export function ConversationSidebar({
         isOpen={showThemeDialog}
         onClose={() => setShowThemeDialog(false)}
       />
+
+      {/* Share Dialog */}
+      {shareConversationId && (
+        <ShareDialog
+          isOpen={showShareDialog}
+          onClose={() => {
+            setShowShareDialog(false);
+            setShareConversationId(null);
+            setShareConversationTitle('');
+          }}
+          conversationId={shareConversationId}
+          conversationTitle={shareConversationTitle}
+        />
+      )}
     </>
   );
 }

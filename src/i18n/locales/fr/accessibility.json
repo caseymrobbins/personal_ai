@@ -1,0 +1,39 @@
+{
+  "accessibility": {
+    "title": "Accessibilité",
+    "skipToContent": "Aller au contenu principal",
+    "skipToConversations": "Aller aux conversations",
+    "keyboardShortcuts": "Raccourcis Clavier",
+    "screenReader": "Lecteur d'Écran"
+  },
+  "shortcuts": {
+    "newConversation": "Nouvelle Conversation",
+    "toggleSidebar": "Basculer la Barre Latérale",
+    "focusInput": "Mettre le Focus sur l'Entrée de Message",
+    "commandPalette": "Ouvrir la Palette de Commandes",
+    "showShortcuts": "Afficher les Raccourcis Clavier"
+  },
+  "a11y": {
+    "searchConversations": "Rechercher des conversations",
+    "conversationActions": "Actions de conversation",
+    "renameConversation": "Renommer la conversation {{title}}",
+    "exportConversation": "Exporter la conversation {{title}}",
+    "deleteConversation": "Supprimer la conversation {{title}}",
+    "messageLoaded": "Message chargé",
+    "conversationsNavigation": "Navigation dans les conversations",
+    "chatInterface": "Interface de chat",
+    "messagesList": "Liste des messages",
+    "conversationHistory": "Historique des conversations",
+    "encryptedBackups": "Sauvegardes chiffrées",
+    "themesAndAppearance": "Paramètres de thème et d'apparence",
+    "messageSent": "Message envoyé",
+    "responseReceived": "Réponse reçue de l'IA",
+    "requestStopped": "Demande arrêtée par l'utilisateur",
+    "noConversationsYet": "Aucune conversation pour le moment"
+  },
+  "alerts": {
+    "unsavedChanges": "Vous avez des modifications non enregistrées",
+    "confirmAction": "Êtes-vous sûr ?",
+    "actionCompleted": "Action terminée avec succès"
+  }
+}

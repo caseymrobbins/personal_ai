@@ -1,0 +1,69 @@
+{
+  "settings": {
+    "title": "Paramètres",
+    "general": "Général",
+    "appearance": "Apparence",
+    "accessibility": "Accessibilité",
+    "privacy": "Confidentialité",
+    "about": "À propos",
+    "language": "Langue",
+    "selectLanguage": "Sélectionner la langue",
+    "theme": "Thème",
+    "darkMode": "Mode Sombre",
+    "lightMode": "Mode Clair",
+    "autoMode": "Auto (Système)"
+  },
+  "themes": {
+    "colorScheme": "Schéma de Couleurs",
+    "dark": "Sombre",
+    "light": "Clair",
+    "nord": "Nord",
+    "solarized": "Solarized",
+    "monokai": "Monokai",
+    "custom": "Personnalisé",
+    "font": "Police",
+    "fontSize": "Taille de Police",
+    "small": "Petite (14px)",
+    "medium": "Moyenne (16px)",
+    "large": "Grande (18px)",
+    "xLarge": "Très Grande (20px)",
+    "density": "Densité de l'Interface",
+    "compact": "Compact",
+    "comfortable": "Confortable",
+    "spacious": "Spacieux"
+  },
+  "preferences": {
+    "socraticMode": "Mode Socratique",
+    "socraticModeDescription": "Poser des questions de clarification au lieu de réponses directes",
+    "enableNotifications": "Activer les Notifications",
+    "autoSave": "Enregistrement automatique des conversations",
+    "fontSize": "Taille de Police de Base"
+  },
+  "backup": {
+    "title": "Sauvegarde",
+    "create": "Créer une Sauvegarde",
+    "restore": "Restaurer une Sauvegarde",
+    "schedule": "Planifier les Sauvegardes",
+    "password": "Mot de Passe de Sauvegarde",
+    "confirmPassword": "Confirmer le Mot de Passe",
+    "created": "Sauvegarde créée avec succès",
+    "restored": "Sauvegarde restaurée avec succès"
+  },
+  "export": {
+    "title": "Exporter",
+    "exportAllConversations": "Exporter Toutes les Conversations",
+    "exportFormat": "Format d'Exportation",
+    "json": "JSON",
+    "csv": "CSV",
+    "pdf": "PDF",
+    "excel": "Excel"
+  },
+  "privacy": {
+    "title": "Paramètres de Confidentialité",
+    "anonymize": "Anonymiser les données pour les adaptateurs externes",
+    "clearCache": "Vider le cache",
+    "clearCacheConfirm": "Êtes-vous sûr ? Cela supprimera toutes les données en cache.",
+    "deleteAllData": "Supprimer toutes les données",
+    "deleteAllDataConfirm": "Attention : Cela supprimera définitivement toutes les conversations et paramètres. Cette action est irréversible."
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "sidebar": {
+    "title": "Conversaciones",
+    "toggleButton": "Alternar conversaciones",
+    "newConversation": "Nuevo",
+    "newConversationLabel": "Inicia una nueva conversación",
+    "importConversations": "Importar",
+    "importLabel": "Importa conversaciones desde ChatGPT o Claude",
+    "searchPlaceholder": "Buscar conversaciones...",
+    "searchInstructions": "Escribe al menos 3 caracteres y presiona Enter para buscar",
+    "noConversations": "Sin conversaciones aún",
+    "noConversationsHint": "Haz clic en 'Nuevo' para comenzar",
+    "conversationCount": "{{count}} conversación",
+    "conversationCount_plural": "{{count}} conversaciones",
+    "messageCount": "{{count}} mensaje",
+    "messageCount_plural": "{{count}} mensajes"
+  },
+  "conversation": {
+    "rename": "Renombrar",
+    "export": "Exportar",
+    "delete": "Eliminar",
+    "deleteConfirm": "¿Eliminar conversación '{{title}}'? Esto no se puede deshacer.",
+    "renamePrompt": "Ingresa nuevo nombre para la conversación",
+    "renamed": "Conversación renombrada",
+    "exported": "Conversación exportada",
+    "deleted": "Conversación eliminada",
+    "justNow": "Justo ahora",
+    "minutesAgo": "Hace {{count}}m",
+    "hoursAgo": "Hace {{count}}h",
+    "daysAgo": "Hace {{count}}d"
+  },
+  "footer": {
+    "exportAll": "Exportar Todo",
+    "exportAllLabel": "Exporta todas las conversaciones",
+    "backup": "Respaldo",
+    "backupLabel": "Respaldos encriptados",
+    "theme": "Tema",
+    "themeLabel": "Configuración de temas y apariencia"
+  }
+}

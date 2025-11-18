@@ -1,0 +1,38 @@
+{
+  "chat": {
+    "title": "Chat",
+    "inputPlaceholder": "Type your message here...",
+    "sendButton": "Send",
+    "stopButton": "Stop",
+    "thinking": "Thinking...",
+    "waitingForResponse": "Waiting for response...",
+    "messageSent": "Message sent",
+    "responseReceived": "Response received",
+    "emptyConversation": "No messages yet. Start a conversation!",
+    "typingIndicator": "is typing...",
+    "messageDeleted": "Message deleted",
+    "messageCopied": "Message copied to clipboard",
+    "selectAdapter": "Select AI adapter",
+    "adapterStatus": "Adapter status",
+    "modelLoading": "Model loading...",
+    "modelReady": "Model ready",
+    "modelError": "Model error"
+  },
+  "messages": {
+    "user": "You",
+    "assistant": "Assistant",
+    "system": "System",
+    "editMessage": "Edit message",
+    "deleteMessage": "Delete message",
+    "copyMessage": "Copy message",
+    "shareMessage": "Share message"
+  },
+  "attachments": {
+    "attachFile": "Attach file",
+    "image": "Image",
+    "document": "Document",
+    "removeAttachment": "Remove attachment",
+    "uploading": "Uploading...",
+    "uploadedSuccessfully": "Uploaded successfully"
+  }
+}

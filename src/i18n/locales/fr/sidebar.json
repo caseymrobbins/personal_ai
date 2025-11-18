@@ -1,0 +1,40 @@
+{
+  "sidebar": {
+    "title": "Conversations",
+    "toggleButton": "Basculer les conversations",
+    "newConversation": "Nouveau",
+    "newConversationLabel": "Démarrer une nouvelle conversation",
+    "importConversations": "Importer",
+    "importLabel": "Importer des conversations depuis ChatGPT ou Claude",
+    "searchPlaceholder": "Rechercher des conversations...",
+    "searchInstructions": "Tapez au moins 3 caractères et appuyez sur Entrée pour rechercher",
+    "noConversations": "Aucune conversation pour le moment",
+    "noConversationsHint": "Cliquez sur 'Nouveau' pour commencer",
+    "conversationCount": "{{count}} conversation",
+    "conversationCount_plural": "{{count}} conversations",
+    "messageCount": "{{count}} message",
+    "messageCount_plural": "{{count}} messages"
+  },
+  "conversation": {
+    "rename": "Renommer",
+    "export": "Exporter",
+    "delete": "Supprimer",
+    "deleteConfirm": "Supprimer la conversation '{{title}}' ? Cette action est irréversible.",
+    "renamePrompt": "Entrez le nouveau nom de la conversation",
+    "renamed": "Conversation renommée",
+    "exported": "Conversation exportée",
+    "deleted": "Conversation supprimée",
+    "justNow": "À l'instant",
+    "minutesAgo": "Il y a {{count}}m",
+    "hoursAgo": "Il y a {{count}}h",
+    "daysAgo": "Il y a {{count}}j"
+  },
+  "footer": {
+    "exportAll": "Tout Exporter",
+    "exportAllLabel": "Exporter toutes les conversations",
+    "backup": "Sauvegarde",
+    "backupLabel": "Sauvegardes chiffrées",
+    "theme": "Thème",
+    "themeLabel": "Paramètres de thème et d'apparence"
+  }
+}
