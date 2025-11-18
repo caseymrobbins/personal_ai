@@ -17,6 +17,7 @@ import { searchService, type SearchResult } from '../services/search.service';
 import { attachmentsService } from '../services/attachments.service';
 import { SearchResults } from './SearchResults';
 import { ImportDialog } from './import/ImportDialog';
+import { BackupDialog } from './backup/BackupDialog';
 import './ConversationSidebar.css';
 
 export interface ConversationSidebarProps {
@@ -45,6 +46,7 @@ export function ConversationSidebar({
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showBackupDialog, setShowBackupDialog] = useState(false);
 
   const handleNewConversation = () => {
     onConversationCreate();
@@ -390,9 +392,18 @@ export function ConversationSidebar({
         </div>
 
         <div className="sidebar-footer">
-          <button className="export-all-btn" onClick={handleExportAll}>
-            📦 Export All
-          </button>
+          <div className="sidebar-footer-buttons">
+            <button className="export-all-btn" onClick={handleExportAll}>
+              📦 Export All
+            </button>
+            <button
+              className="backup-btn"
+              onClick={() => setShowBackupDialog(true)}
+              title="Encrypted Backups"
+            >
+              🔐 Backup
+            </button>
+          </div>
           <div className="sidebar-stats">
             {conversations.length} {conversations.length === 1 ? 'conversation' : 'conversations'}
           </div>
@@ -407,6 +418,12 @@ export function ConversationSidebar({
         isOpen={showImportDialog}
         onClose={() => setShowImportDialog(false)}
         onImportComplete={handleImportComplete}
+      />
+
+      {/* Backup Dialog */}
+      <BackupDialog
+        isOpen={showBackupDialog}
+        onClose={() => setShowBackupDialog(false)}
       />
     </>
   );
