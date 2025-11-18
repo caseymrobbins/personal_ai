@@ -58,7 +58,7 @@ describe('ConversationSidebar', () => {
     it('should render new conversation button', () => {
       render(<ConversationSidebar {...defaultProps} />);
 
-      expect(screen.getByText(/New Conversation/i)).toBeInTheDocument();
+      expect(screen.getByTitle(/New conversation/i)).toBeInTheDocument();
     });
 
     it('should not render when isOpen is false', () => {
@@ -89,7 +89,7 @@ describe('ConversationSidebar', () => {
         />
       );
 
-      const newButton = screen.getByText(/New Conversation/i);
+      const newButton = screen.getByTitle(/New conversation/i);
       await user.click(newButton);
 
       expect(onConversationCreate).toHaveBeenCalledTimes(1);
@@ -175,7 +175,7 @@ describe('ConversationSidebar', () => {
         />
       );
 
-      expect(screen.getByText(/New Conversation/i)).toBeInTheDocument();
+      expect(screen.getByTitle(/New conversation/i)).toBeInTheDocument();
     });
   });
 
@@ -186,7 +186,7 @@ describe('ConversationSidebar', () => {
 
       render(<ConversationSidebar {...defaultProps} onToggle={onToggle} />);
 
-      const toggleButton = screen.getByTitle(/Toggle sidebar/i);
+      const toggleButton = screen.getByTitle(/Toggle conversations/i);
       await user.click(toggleButton);
 
       expect(onToggle).toHaveBeenCalledTimes(1);
