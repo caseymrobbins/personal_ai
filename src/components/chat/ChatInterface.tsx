@@ -14,7 +14,7 @@ import './ChatInterface.css';
 
 export interface ChatInterfaceProps {
   messages: ChatMessage[];
-  onSendMessage: (message: string, imageFiles?: File[]) => void;
+  onSendMessage: (message: string, imageFiles?: File[], documentFiles?: File[]) => void;
   isLoading?: boolean;
   loadingMessage?: string;
 }

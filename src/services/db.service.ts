@@ -41,10 +41,10 @@ export interface ChatMessage {
 export interface MessageAttachment {
   id: string;
   message_id: string;
-  type: 'image' | 'file';
+  type: 'image' | 'file' | 'document';
   mime_type: string;
   filename: string;
-  data: string; // base64 encoded
+  data: string; // base64 encoded (for images) or text content (for documents)
   size: number;
   created_at: number;
 }
@@ -156,7 +156,7 @@ class DatabaseService {
         CREATE TABLE IF NOT EXISTS message_attachments (
           id TEXT PRIMARY KEY,
           message_id TEXT NOT NULL,
-          type TEXT NOT NULL CHECK(type IN ('image', 'file')),
+          type TEXT NOT NULL CHECK(type IN ('image', 'file', 'document')),
           mime_type TEXT NOT NULL,
           filename TEXT NOT NULL,
           data TEXT NOT NULL,

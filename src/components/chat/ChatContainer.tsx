@@ -27,6 +27,7 @@ import { rdiService } from '../../services/rdi.service';
 import { socraticService } from '../../services/socratic.service';
 import { preferencesService } from '../../services/preferences.service';
 import { attachmentsService } from '../../services/attachments.service';
+import { documentParsingService } from '../../services/document.service';
 import { useChatState } from '../../store/chat.store';
 import type { IChatCompletionRequest } from '../../modules/adapters';
 
@@ -167,7 +168,7 @@ export function ChatContainer() {
 
   // Handle sending a message
   const handleSendMessage = useCallback(
-    async (content: string, imageFiles?: File[]) => {
+    async (content: string, imageFiles?: File[], documentFiles?: File[]) => {
       if (!currentConversation) {
         console.error('[ChatContainer] No active conversation');
         return;
@@ -209,6 +210,21 @@ export function ChatContainer() {
             } catch (error) {
               console.error(`[ChatContainer] ❌ Failed to attach image ${file.name}:`, error);
               // Continue with other images even if one fails
+            }
+          }
+        }
+
+        // STEP 1.6: Process and attach documents if provided
+        if (documentFiles && documentFiles.length > 0) {
+          console.log(`[ChatContainer] Processing ${documentFiles.length} document(s)...`);
+
+          for (const file of documentFiles) {
+            try {
+              await documentParsingService.addDocumentAttachment(userMessageId, file);
+              console.log(`[ChatContainer] ✅ Attached document: ${file.name}`);
+            } catch (error) {
+              console.error(`[ChatContainer] ❌ Failed to attach document ${file.name}:`, error);
+              // Continue with other documents even if one fails
             }
           }
         }
