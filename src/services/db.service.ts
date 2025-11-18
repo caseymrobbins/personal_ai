@@ -52,6 +52,26 @@ export interface ConversationWithTags extends Conversation {
   tags: Tag[];
 }
 
+/**
+ * Bookmark interface for starred conversations and messages
+ */
+export interface Bookmark {
+  id: string;
+  conversation_id: string;
+  message_id?: string | null;
+  bookmark_type: 'conversation' | 'message';
+  label?: string;
+  created_at: number;
+}
+
+/**
+ * Conversation with bookmark status
+ */
+export interface ConversationWithBookmark extends Conversation {
+  isBookmarked: boolean;
+  bookmarkLabel?: string;
+}
+
 class DatabaseService {
   private db: Database | null = null;
   private initialized = false;
@@ -196,10 +216,26 @@ class DatabaseService {
         )
       `);
 
+      // Bookmarks table (for starred conversations and messages)
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS bookmarks (
+          id TEXT PRIMARY KEY,
+          conversation_id TEXT NOT NULL,
+          message_id TEXT,
+          bookmark_type TEXT NOT NULL CHECK(bookmark_type IN ('conversation', 'message')),
+          label TEXT,
+          created_at INTEGER NOT NULL,
+          FOREIGN KEY (conversation_id) REFERENCES conversations(id),
+          FOREIGN KEY (message_id) REFERENCES chat_messages(id)
+        )
+      `);
+
       // Create indexes for better query performance
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_tags_conversation ON conversation_tags(conversation_id)`);
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_tags_tag ON conversation_tags(tag_id)`);
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_bookmarks_conversation ON bookmarks(conversation_id)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_bookmarks_type ON bookmarks(bookmark_type)`);
 
       console.log('[DB] ✅ Database schema created successfully');
     } catch (error) {
@@ -911,6 +947,205 @@ class DatabaseService {
       ...conversation,
       tags
     };
+  }
+
+  // ============================================================================
+  // BOOKMARK MANAGEMENT METHODS (Sprint 16: Bookmarks & Favorites)
+  // ============================================================================
+
+  /**
+   * Bookmark a conversation
+   * @param conversationId Conversation ID to bookmark
+   * @param label Optional label for the bookmark
+   * @returns The created bookmark
+   */
+  bookmarkConversation(conversationId: string, label?: string): Bookmark {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const id = `bm-${crypto.randomUUID()}`;
+    const created_at = Date.now();
+
+    this.db.run(
+      'INSERT INTO bookmarks (id, conversation_id, message_id, bookmark_type, label, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, conversationId, null, 'conversation', label || null, created_at]
+    );
+
+    // Auto-save after bookmarking
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Bookmarked conversation: ${conversationId}`);
+
+    return { id, conversation_id: conversationId, bookmark_type: 'conversation', label, created_at };
+  }
+
+  /**
+   * Bookmark a specific message
+   * @param messageId Message ID to bookmark
+   * @param conversationId Conversation ID (required for FK)
+   * @param label Optional label for the bookmark
+   * @returns The created bookmark
+   */
+  bookmarkMessage(messageId: string, conversationId: string, label?: string): Bookmark {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const id = `bm-${crypto.randomUUID()}`;
+    const created_at = Date.now();
+
+    this.db.run(
+      'INSERT INTO bookmarks (id, conversation_id, message_id, bookmark_type, label, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [id, conversationId, messageId, 'message', label || null, created_at]
+    );
+
+    // Auto-save after bookmarking
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Bookmarked message: ${messageId}`);
+
+    return { id, conversation_id: conversationId, message_id: messageId, bookmark_type: 'message', label, created_at };
+  }
+
+  /**
+   * Check if a conversation is bookmarked
+   * @param conversationId Conversation ID
+   * @returns Bookmark object or null if not bookmarked
+   */
+  isConversationBookmarked(conversationId: string): Bookmark | null {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const results = this.query<Bookmark>(
+      'SELECT id, conversation_id, message_id, bookmark_type, label, created_at FROM bookmarks WHERE conversation_id = ? AND bookmark_type = ? AND message_id IS NULL',
+      [conversationId, 'conversation']
+    );
+
+    return results.length > 0 ? results[0] : null;
+  }
+
+  /**
+   * Get all bookmarked conversations
+   * @returns Array of bookmarked conversations
+   */
+  getBookmarkedConversations(): Bookmark[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    return this.query<Bookmark>(
+      'SELECT id, conversation_id, message_id, bookmark_type, label, created_at FROM bookmarks WHERE bookmark_type = ? ORDER BY created_at DESC',
+      ['conversation']
+    );
+  }
+
+  /**
+   * Get all bookmarked messages for a conversation
+   * @param conversationId Conversation ID
+   * @returns Array of bookmarked messages
+   */
+  getBookmarkedMessages(conversationId: string): Bookmark[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    return this.query<Bookmark>(
+      'SELECT id, conversation_id, message_id, bookmark_type, label, created_at FROM bookmarks WHERE conversation_id = ? AND bookmark_type = ? ORDER BY created_at DESC',
+      [conversationId, 'message']
+    );
+  }
+
+  /**
+   * Get all bookmarks (conversations and messages)
+   * @returns Array of all bookmarks
+   */
+  getAllBookmarks(): Bookmark[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    return this.query<Bookmark>(
+      'SELECT id, conversation_id, message_id, bookmark_type, label, created_at FROM bookmarks ORDER BY created_at DESC'
+    );
+  }
+
+  /**
+   * Remove a bookmark
+   * @param bookmarkId Bookmark ID
+   */
+  removeBookmark(bookmarkId: string): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    this.db.run('DELETE FROM bookmarks WHERE id = ?', [bookmarkId]);
+
+    // Auto-save after deletion
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Removed bookmark: ${bookmarkId}`);
+  }
+
+  /**
+   * Remove bookmark for a conversation
+   * @param conversationId Conversation ID
+   */
+  removeConversationBookmark(conversationId: string): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    this.db.run('DELETE FROM bookmarks WHERE conversation_id = ? AND bookmark_type = ? AND message_id IS NULL', [conversationId, 'conversation']);
+
+    // Auto-save after deletion
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Removed conversation bookmark: ${conversationId}`);
+  }
+
+  /**
+   * Update bookmark label
+   * @param bookmarkId Bookmark ID
+   * @param label New label
+   */
+  updateBookmarkLabel(bookmarkId: string, label: string): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    this.db.run('UPDATE bookmarks SET label = ? WHERE id = ?', [label, bookmarkId]);
+
+    // Auto-save after updating
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Updated bookmark label: ${bookmarkId}`);
+  }
+
+  /**
+   * Get bookmark statistics
+   * @returns Statistics about bookmarks
+   */
+  getBookmarkStats(): { totalBookmarks: number; conversationBookmarks: number; messageBookmarks: number } {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const stats = this.query<{ type: string; count: number }>(
+      'SELECT bookmark_type as type, COUNT(*) as count FROM bookmarks GROUP BY bookmark_type'
+    );
+
+    const conversationBookmarks = stats.find(s => s.type === 'conversation')?.count || 0;
+    const messageBookmarks = stats.find(s => s.type === 'message')?.count || 0;
+
+    return {
+      totalBookmarks: conversationBookmarks + messageBookmarks,
+      conversationBookmarks,
+      messageBookmarks
+    };
+  }
+
+  /**
+   * Get conversations with bookmark status
+   * @returns Array of conversations with bookmark indicator
+   */
+  getConversationsWithBookmarkStatus(): ConversationWithBookmark[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const conversations = this.getConversations();
+    const bookmarks = this.query<{ conversation_id: string; label: string | null }>(
+      'SELECT DISTINCT conversation_id, label FROM bookmarks WHERE bookmark_type = ? AND message_id IS NULL',
+      ['conversation']
+    );
+
+    const bookmarkMap = new Map(bookmarks.map(b => [b.conversation_id, b.label]));
+
+    return conversations.map(conv => ({
+      ...conv,
+      isBookmarked: bookmarkMap.has(conv.id),
+      bookmarkLabel: bookmarkMap.get(conv.id) || undefined
+    }));
   }
 
   /**
