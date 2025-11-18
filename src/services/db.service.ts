@@ -312,6 +312,53 @@ export interface ComparativeStats {
   insights: string[];
 }
 
+/**
+ * Local model state interface
+ */
+export interface LocalModelState {
+  id: string;
+  model_id: string;
+  status: 'idle' | 'downloading' | 'initializing' | 'ready' | 'error';
+  progress: number; // 0 to 1
+  downloaded_bytes: number;
+  total_bytes: number;
+  initialization_timestamp?: number;
+  last_activity: number;
+  error_message?: string;
+  cache_path?: string;
+  storage_quota_bytes?: number;
+  created_at: number;
+  updated_at: number;
+}
+
+/**
+ * Local model metrics interface
+ */
+export interface LocalModelMetrics {
+  id: string;
+  model_id: string;
+  load_duration_ms?: number;
+  peak_memory_mb?: number;
+  initialization_errors: number;
+  failed_attempts: number;
+  last_successful_load?: number;
+  created_at: number;
+}
+
+/**
+ * Local model preferences interface
+ */
+export interface LocalModelPreferences {
+  id: string;
+  auto_load_model: boolean;
+  enable_gpu: boolean;
+  max_memory_mb: number;
+  download_priority: 'fast' | 'balanced' | 'conservative';
+  cache_bust_age_days?: number;
+  created_at: number;
+  updated_at: number;
+}
+
 class DatabaseService {
   private db: Database | null = null;
   private initialized = false;
@@ -650,6 +697,54 @@ class DatabaseService {
         )
       `);
 
+      // Local model state table (for tracking Phi-3 model lifecycle)
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS local_model_state (
+          id TEXT PRIMARY KEY,
+          model_id TEXT NOT NULL,
+          status TEXT NOT NULL CHECK(status IN ('idle', 'downloading', 'initializing', 'ready', 'error')),
+          progress REAL DEFAULT 0,
+          downloaded_bytes INTEGER DEFAULT 0,
+          total_bytes INTEGER DEFAULT 0,
+          initialization_timestamp INTEGER,
+          last_activity INTEGER NOT NULL,
+          error_message TEXT,
+          cache_path TEXT,
+          storage_quota_bytes INTEGER,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        )
+      `);
+
+      // Local model metrics table (for performance tracking)
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS local_model_metrics (
+          id TEXT PRIMARY KEY,
+          model_id TEXT NOT NULL,
+          load_duration_ms INTEGER,
+          peak_memory_mb REAL,
+          initialization_errors INTEGER,
+          failed_attempts INTEGER,
+          last_successful_load INTEGER,
+          created_at INTEGER NOT NULL,
+          FOREIGN KEY (model_id) REFERENCES local_model_state(model_id)
+        )
+      `);
+
+      // Local model preferences table (for user settings)
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS local_model_preferences (
+          id TEXT PRIMARY KEY,
+          auto_load_model BOOLEAN DEFAULT 0,
+          enable_gpu BOOLEAN DEFAULT 1,
+          max_memory_mb INTEGER DEFAULT 4096,
+          download_priority TEXT DEFAULT 'balanced' CHECK(download_priority IN ('fast', 'balanced', 'conservative')),
+          cache_bust_age_days INTEGER,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        )
+      `);
+
       // Create indexes for better query performance
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_tags_conversation ON conversation_tags(conversation_id)`);
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_tags_tag ON conversation_tags(tag_id)`);
@@ -678,6 +773,13 @@ class DatabaseService {
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_trend_analysis_conversation ON trend_analysis(conversation_id)`);
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_trend_analysis_metric ON trend_analysis(metric)`);
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_trend_analysis_timeframe ON trend_analysis(timeframe)`);
+
+      // Indexes for local model tables
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_local_model_state_model_id ON local_model_state(model_id)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_local_model_state_status ON local_model_state(status)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_local_model_state_activity ON local_model_state(last_activity)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_local_model_metrics_model_id ON local_model_metrics(model_id)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_local_model_metrics_created ON local_model_metrics(created_at)`);
 
       console.log('[DB] ✅ Database schema created successfully');
     } catch (error) {
