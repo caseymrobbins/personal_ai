@@ -180,6 +180,51 @@ export interface SentimentStats {
   sentimentTrend: 'improving' | 'declining' | 'stable';
 }
 
+/**
+ * Topic detected in a conversation
+ */
+export interface Topic {
+  id: string;
+  conversation_id: string;
+  name: string;
+  keywords: string; // comma-separated
+  message_count: number;
+  relevance_score: number; // 0 to 1
+  created_at: number;
+}
+
+/**
+ * Word frequency for word clouds
+ */
+export interface WordFrequency {
+  word: string;
+  frequency: number;
+  topic_id?: string;
+}
+
+/**
+ * Topic cluster grouping related topics
+ */
+export interface TopicCluster {
+  id: string;
+  conversation_id: string;
+  cluster_name: string;
+  topic_ids: string; // comma-separated
+  similarity_score: number; // 0 to 1
+  created_at: number;
+}
+
+/**
+ * Topic statistics for a conversation
+ */
+export interface TopicStats {
+  totalTopics: number;
+  topicDistribution: Array<{ name: string; messageCount: number; score: number }>;
+  topKeywords: Array<{ word: string; frequency: number }>;
+  topicClusters: number;
+  mainTopics: string[];
+}
+
 class DatabaseService {
   private db: Database | null = null;
   private initialized = false;
@@ -426,6 +471,47 @@ class DatabaseService {
         )
       `);
 
+      // Topics table (auto-detected topics in conversations)
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS topics (
+          id TEXT PRIMARY KEY,
+          conversation_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          keywords TEXT NOT NULL,
+          message_count INTEGER NOT NULL,
+          relevance_score REAL NOT NULL,
+          created_at INTEGER NOT NULL,
+          FOREIGN KEY (conversation_id) REFERENCES conversations(id)
+        )
+      `);
+
+      // Word frequency table (for word clouds)
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS word_frequency (
+          id TEXT PRIMARY KEY,
+          conversation_id TEXT NOT NULL,
+          word TEXT NOT NULL,
+          frequency INTEGER NOT NULL,
+          topic_id TEXT,
+          created_at INTEGER NOT NULL,
+          FOREIGN KEY (conversation_id) REFERENCES conversations(id),
+          FOREIGN KEY (topic_id) REFERENCES topics(id)
+        )
+      `);
+
+      // Topic clusters table (grouping related topics)
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS topic_clusters (
+          id TEXT PRIMARY KEY,
+          conversation_id TEXT NOT NULL,
+          cluster_name TEXT NOT NULL,
+          topic_ids TEXT NOT NULL,
+          similarity_score REAL NOT NULL,
+          created_at INTEGER NOT NULL,
+          FOREIGN KEY (conversation_id) REFERENCES conversations(id)
+        )
+      `);
+
       // Create indexes for better query performance
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_tags_conversation ON conversation_tags(conversation_id)`);
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_tags_tag ON conversation_tags(tag_id)`);
@@ -441,6 +527,13 @@ class DatabaseService {
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_message_sentiment_message ON message_sentiment(message_id)`);
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_message_sentiment_label ON message_sentiment(sentiment_label)`);
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_sentiment_trends_conversation ON conversation_sentiment_trends(conversation_id)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_topics_conversation ON topics(conversation_id)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_topics_relevance ON topics(relevance_score)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_word_frequency_conversation ON word_frequency(conversation_id)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_word_frequency_topic ON word_frequency(topic_id)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_word_frequency_word ON word_frequency(word)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_topic_clusters_conversation ON topic_clusters(conversation_id)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_topic_clusters_similarity ON topic_clusters(similarity_score)`);
 
       console.log('[DB] ✅ Database schema created successfully');
     } catch (error) {
@@ -2364,6 +2457,447 @@ class DatabaseService {
       relationCount,
       hasParent: !!parentBranch
     };
+  }
+
+  /**
+   * Create a topic in a conversation
+   * @param conversationId Conversation ID
+   * @param name Topic name
+   * @param keywords Comma-separated keywords
+   * @param messageCount Number of messages containing this topic
+   * @param relevanceScore Relevance score (0 to 1)
+   * @returns Created topic
+   */
+  createTopic(
+    conversationId: string,
+    name: string,
+    keywords: string,
+    messageCount: number,
+    relevanceScore: number
+  ): Topic {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const topicId = `topic-${crypto.randomUUID()}`;
+
+    this.db.run(
+      `INSERT INTO topics (id, conversation_id, name, keywords, message_count, relevance_score, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [topicId, conversationId, name, keywords, messageCount, relevanceScore, Date.now()]
+    );
+
+    // Auto-save
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Created topic ${topicId} in conversation ${conversationId}`);
+
+    return {
+      id: topicId,
+      conversation_id: conversationId,
+      name,
+      keywords,
+      message_count: messageCount,
+      relevance_score: relevanceScore,
+      created_at: Date.now()
+    };
+  }
+
+  /**
+   * Get all topics in a conversation
+   * @param conversationId Conversation ID
+   * @returns Array of topics
+   */
+  getTopics(conversationId: string): Topic[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    return this.query<Topic>(
+      `SELECT id, conversation_id, name, keywords, message_count, relevance_score, created_at
+       FROM topics
+       WHERE conversation_id = ?
+       ORDER BY relevance_score DESC`,
+      [conversationId]
+    );
+  }
+
+  /**
+   * Get topic by ID
+   * @param topicId Topic ID
+   * @returns Topic or null
+   */
+  getTopic(topicId: string): Topic | null {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const result = this.query<Topic>(
+      'SELECT id, conversation_id, name, keywords, message_count, relevance_score, created_at FROM topics WHERE id = ?',
+      [topicId]
+    );
+
+    return result[0] || null;
+  }
+
+  /**
+   * Update topic
+   * @param topicId Topic ID
+   * @param updates Partial topic updates
+   * @returns Updated topic
+   */
+  updateTopic(topicId: string, updates: Partial<Topic>): Topic {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const topic = this.getTopic(topicId);
+    if (!topic) {
+      throw new Error(`Topic not found: ${topicId}`);
+    }
+
+    const updated = { ...topic, ...updates };
+
+    this.db.run(
+      `UPDATE topics SET name = ?, keywords = ?, message_count = ?, relevance_score = ?
+       WHERE id = ?`,
+      [updated.name, updated.keywords, updated.message_count, updated.relevance_score, topicId]
+    );
+
+    // Auto-save
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Updated topic ${topicId}`);
+
+    return updated;
+  }
+
+  /**
+   * Delete topic
+   * @param topicId Topic ID
+   * @returns True if deleted, false if not found
+   */
+  deleteTopic(topicId: string): boolean {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const topic = this.getTopic(topicId);
+    if (!topic) {
+      return false;
+    }
+
+    // Delete associated word frequencies
+    this.db.run('DELETE FROM word_frequency WHERE topic_id = ?', [topicId]);
+
+    // Delete topic
+    this.db.run('DELETE FROM topics WHERE id = ?', [topicId]);
+
+    // Auto-save
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Deleted topic ${topicId}`);
+
+    return true;
+  }
+
+  /**
+   * Record word frequency
+   * @param conversationId Conversation ID
+   * @param word Word
+   * @param frequency Frequency count
+   * @param topicId Optional topic ID
+   * @returns Created record ID
+   */
+  recordWordFrequency(
+    conversationId: string,
+    word: string,
+    frequency: number,
+    topicId?: string
+  ): string {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const recordId = `wf-${crypto.randomUUID()}`;
+
+    this.db.run(
+      `INSERT INTO word_frequency (id, conversation_id, word, frequency, topic_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [recordId, conversationId, word.toLowerCase(), frequency, topicId || null, Date.now()]
+    );
+
+    // Auto-save
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    return recordId;
+  }
+
+  /**
+   * Get word frequencies for a conversation
+   * @param conversationId Conversation ID
+   * @param limit Maximum number of results
+   * @returns Array of word frequencies
+   */
+  getWordFrequencies(conversationId: string, limit: number = 100): WordFrequency[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    return this.query<WordFrequency>(
+      `SELECT word, frequency, topic_id
+       FROM word_frequency
+       WHERE conversation_id = ?
+       ORDER BY frequency DESC
+       LIMIT ?`,
+      [conversationId, limit]
+    );
+  }
+
+  /**
+   * Get word frequencies for a specific topic
+   * @param topicId Topic ID
+   * @returns Array of word frequencies
+   */
+  getTopicWords(topicId: string): WordFrequency[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    return this.query<WordFrequency>(
+      `SELECT word, frequency, topic_id
+       FROM word_frequency
+       WHERE topic_id = ?
+       ORDER BY frequency DESC`,
+      [topicId]
+    );
+  }
+
+  /**
+   * Create a topic cluster
+   * @param conversationId Conversation ID
+   * @param clusterName Cluster name
+   * @param topicIds Comma-separated topic IDs
+   * @param similarityScore Similarity score (0 to 1)
+   * @returns Created cluster
+   */
+  createTopicCluster(
+    conversationId: string,
+    clusterName: string,
+    topicIds: string,
+    similarityScore: number
+  ): TopicCluster {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const clusterId = `cluster-${crypto.randomUUID()}`;
+
+    this.db.run(
+      `INSERT INTO topic_clusters (id, conversation_id, cluster_name, topic_ids, similarity_score, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [clusterId, conversationId, clusterName, topicIds, similarityScore, Date.now()]
+    );
+
+    // Auto-save
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Created topic cluster ${clusterId} in conversation ${conversationId}`);
+
+    return {
+      id: clusterId,
+      conversation_id: conversationId,
+      cluster_name: clusterName,
+      topic_ids: topicIds,
+      similarity_score: similarityScore,
+      created_at: Date.now()
+    };
+  }
+
+  /**
+   * Get all topic clusters in a conversation
+   * @param conversationId Conversation ID
+   * @returns Array of clusters
+   */
+  getTopicClusters(conversationId: string): TopicCluster[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    return this.query<TopicCluster>(
+      `SELECT id, conversation_id, cluster_name, topic_ids, similarity_score, created_at
+       FROM topic_clusters
+       WHERE conversation_id = ?
+       ORDER BY similarity_score DESC`,
+      [conversationId]
+    );
+  }
+
+  /**
+   * Delete topic cluster
+   * @param clusterId Cluster ID
+   * @returns True if deleted, false if not found
+   */
+  deleteTopicCluster(clusterId: string): boolean {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const result = this.query<{ id: string }>(
+      'SELECT id FROM topic_clusters WHERE id = ?',
+      [clusterId]
+    );
+
+    if (result.length === 0) {
+      return false;
+    }
+
+    this.db.run('DELETE FROM topic_clusters WHERE id = ?', [clusterId]);
+
+    // Auto-save
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Deleted topic cluster ${clusterId}`);
+
+    return true;
+  }
+
+  /**
+   * Calculate topic statistics for a conversation
+   * @param conversationId Conversation ID
+   * @returns Topic statistics
+   */
+  getTopicStats(conversationId: string): TopicStats {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const topics = this.getTopics(conversationId);
+    const wordFreqs = this.getWordFrequencies(conversationId, 20);
+    const clusters = this.getTopicClusters(conversationId);
+
+    const topicDistribution = topics.map(topic => ({
+      name: topic.name,
+      messageCount: topic.message_count,
+      score: topic.relevance_score
+    }));
+
+    const topKeywords = wordFreqs.map(wf => ({
+      word: wf.word,
+      frequency: wf.frequency
+    }));
+
+    const mainTopics = topics
+      .sort((a, b) => b.relevance_score - a.relevance_score)
+      .slice(0, 5)
+      .map(t => t.name);
+
+    return {
+      totalTopics: topics.length,
+      topicDistribution,
+      topKeywords,
+      topicClusters: clusters.length,
+      mainTopics
+    };
+  }
+
+  /**
+   * Auto-detect topics from conversation messages
+   * Uses keyword extraction and frequency analysis
+   * @param conversationId Conversation ID
+   * @param minRelevance Minimum relevance score threshold (0 to 1)
+   * @returns Array of auto-detected topics
+   */
+  autoDetectTopics(conversationId: string, minRelevance: number = 0.3): Topic[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    // Get all messages
+    const messages = this.getConversationHistory(conversationId);
+    if (messages.length === 0) {
+      return [];
+    }
+
+    // Extract keywords from messages
+    const keywordMap = new Map<string, number>();
+    const stopWords = new Set([
+      'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from',
+      'as', 'is', 'was', 'are', 'been', 'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would',
+      'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those', 'i', 'you',
+      'he', 'she', 'it', 'we', 'they', 'what', 'which', 'who', 'when', 'where', 'why', 'how'
+    ]);
+
+    for (const msg of messages) {
+      const words = msg.content.toLowerCase()
+        .replace(/[^\w\s]/g, '')
+        .split(/\s+/)
+        .filter(word => word.length > 3 && !stopWords.has(word));
+
+      for (const word of words) {
+        keywordMap.set(word, (keywordMap.get(word) || 0) + 1);
+      }
+    }
+
+    // Sort by frequency
+    const sortedKeywords = Array.from(keywordMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20);
+
+    const maxFrequency = sortedKeywords[0]?.[1] || 1;
+
+    // Create topics from top keywords
+    const topics: Topic[] = [];
+    for (const [keyword, frequency] of sortedKeywords) {
+      const relevanceScore = Math.min(1, frequency / maxFrequency * 0.8 + 0.2);
+
+      if (relevanceScore >= minRelevance) {
+        const topic = this.createTopic(
+          conversationId,
+          keyword.charAt(0).toUpperCase() + keyword.slice(1),
+          keyword,
+          frequency,
+          relevanceScore
+        );
+        topics.push(topic);
+
+        // Record word frequency
+        this.recordWordFrequency(conversationId, keyword, frequency, topic.id);
+      }
+    }
+
+    // Auto-cluster topics if there are many
+    if (topics.length > 5) {
+      this.autoClusterTopics(conversationId, topics);
+    }
+
+    console.log(`[DB] Auto-detected ${topics.length} topics in conversation ${conversationId}`);
+
+    return topics;
+  }
+
+  /**
+   * Auto-cluster topics by similarity
+   * Groups topics with similar keywords together
+   * @param conversationId Conversation ID
+   * @param topics Topics to cluster
+   */
+  private autoClusterTopics(conversationId: string, topics: Topic[]): void {
+    if (topics.length < 2) return;
+
+    const processed = new Set<string>();
+
+    for (let i = 0; i < topics.length; i++) {
+      if (processed.has(topics[i].id)) continue;
+
+      const cluster = [topics[i].id];
+      processed.add(topics[i].id);
+
+      // Simple similarity: same first letter or keyword overlap
+      const topicKeywords = new Set(topics[i].keywords.split(','));
+
+      for (let j = i + 1; j < topics.length; j++) {
+        if (processed.has(topics[j].id)) continue;
+
+        const otherKeywords = new Set(topics[j].keywords.split(','));
+        const intersection = new Set([...topicKeywords].filter(k => otherKeywords.has(k)));
+        const similarity = intersection.size > 0 ? 0.7 : 0;
+
+        if (similarity > 0.3) {
+          cluster.push(topics[j].id);
+          processed.add(topics[j].id);
+        }
+      }
+
+      if (cluster.length > 1) {
+        const clusterNames = cluster
+          .map(id => topics.find(t => t.id === id)?.name || 'Unknown')
+          .join(', ');
+
+        const avgSimilarity = 0.6; // Simplified
+
+        this.createTopicCluster(
+          conversationId,
+          `Cluster: ${clusterNames}`,
+          cluster.join(','),
+          avgSimilarity
+        );
+      }
+    }
   }
 
   /**
