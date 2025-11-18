@@ -7,7 +7,10 @@
 import { useEffect, useState } from 'react';
 import { attachmentsService } from '../../services/attachments.service';
 import { voiceService, type VoiceServiceEvent } from '../../services/voice.service';
+import { markdownService } from '../../services/markdown.service';
 import type { MessageAttachment } from '../../services/db.service';
+import 'highlight.js/styles/github-dark.css';
+import 'katex/dist/katex.min.css';
 import './MessageBubble.css';
 
 export interface MessageBubbleProps {
@@ -22,6 +25,8 @@ export function MessageBubble({ messageId, role, content, timestamp, moduleUsed 
   const [attachments, setAttachments] = useState<MessageAttachment[]>([]);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [renderedHtml, setRenderedHtml] = useState<string>('');
+  const [isMarkdownContent, setIsMarkdownContent] = useState(false);
 
   // Check TTS support
   const ttsSupported = voiceService.isSpeechSynthesisSupported();
@@ -45,6 +50,32 @@ export function MessageBubble({ messageId, role, content, timestamp, moduleUsed 
 
     loadAttachments();
   }, [messageId]);
+
+  // Render markdown content
+  useEffect(() => {
+    const renderContent = async () => {
+      if (!content) {
+        setRenderedHtml('');
+        return;
+      }
+
+      // Check if content appears to be markdown
+      const isMarkdown = markdownService.isMarkdown(content);
+      setIsMarkdownContent(isMarkdown);
+
+      if (isMarkdown) {
+        try {
+          const rendered = await markdownService.renderMarkdown(content);
+          setRenderedHtml(rendered.html);
+        } catch (error) {
+          console.error('[MessageBubble] Markdown rendering failed:', error);
+          setRenderedHtml(content);
+        }
+      }
+    };
+
+    renderContent();
+  }, [content]);
 
   // Listen for TTS events
   useEffect(() => {
@@ -123,7 +154,18 @@ export function MessageBubble({ messageId, role, content, timestamp, moduleUsed 
       )}
 
       {/* Message text content */}
-      {content && <div className="message-content">{content}</div>}
+      {content && (
+        <div className="message-content">
+          {isMarkdownContent ? (
+            <div
+              className="markdown-content"
+              dangerouslySetInnerHTML={{ __html: renderedHtml }}
+            />
+          ) : (
+            <div className="plain-text-content">{content}</div>
+          )}
+        </div>
+      )}
 
       {moduleUsed && role === 'assistant' && (
         <div className="message-footer">
