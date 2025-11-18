@@ -22,12 +22,16 @@
     "zustand": "^4.5.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@types/sql.js": "^1.4.9",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
     "@vitejs/plugin-react": "^4.3.3",
+    "@vitest/coverage-v8": "^1.0.4",
     "@vitest/ui": "^1.0.4",
     "eslint": "^8.57.1",
     "eslint-plugin-react-hooks": "^4.6.2",
@@ -35,7 +39,6 @@
     "happy-dom": "^12.10.3",
     "typescript": "^5.6.2",
     "vite": "^5.4.10",
-    "vitest": "^1.0.4",
-    "@vitest/coverage-v8": "^1.0.4"
+    "vitest": "^1.0.4"
   }
 }
