@@ -72,6 +72,36 @@ export interface ConversationWithBookmark extends Conversation {
   bookmarkLabel?: string;
 }
 
+/**
+ * Message edit history entry
+ */
+export interface MessageEditHistory {
+  id: string;
+  message_id: string;
+  previous_content: string;
+  edited_at: number;
+}
+
+/**
+ * Message with edit history and thread info
+ */
+export interface MessageWithDetails extends ChatMessage {
+  edited_at?: number;
+  is_pinned?: boolean;
+  thread_parent_id?: string | null;
+  thread_count?: number;
+}
+
+/**
+ * Message thread reply
+ */
+export interface MessageThread {
+  id: string;
+  parent_message_id: string;
+  conversation_id: string;
+  messages: MessageWithDetails[];
+}
+
 class DatabaseService {
   private db: Database | null = null;
   private initialized = false;
@@ -230,12 +260,38 @@ class DatabaseService {
         )
       `);
 
+      // Message edit history table (for tracking message edits)
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS message_edit_history (
+          id TEXT PRIMARY KEY,
+          message_id TEXT NOT NULL,
+          previous_content TEXT NOT NULL,
+          edited_at INTEGER NOT NULL,
+          FOREIGN KEY (message_id) REFERENCES chat_messages(id)
+        )
+      `);
+
+      // Message metadata table (for pinned messages and thread info)
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS message_metadata (
+          message_id TEXT PRIMARY KEY,
+          is_pinned INTEGER NOT NULL DEFAULT 0,
+          thread_parent_id TEXT,
+          last_modified INTEGER,
+          FOREIGN KEY (message_id) REFERENCES chat_messages(id),
+          FOREIGN KEY (thread_parent_id) REFERENCES chat_messages(id)
+        )
+      `);
+
       // Create indexes for better query performance
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_tags_conversation ON conversation_tags(conversation_id)`);
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_tags_tag ON conversation_tags(tag_id)`);
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name)`);
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_bookmarks_conversation ON bookmarks(conversation_id)`);
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_bookmarks_type ON bookmarks(bookmark_type)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_message_edit_history_message ON message_edit_history(message_id)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_message_metadata_pinned ON message_metadata(is_pinned)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_message_metadata_thread_parent ON message_metadata(thread_parent_id)`);
 
       console.log('[DB] ✅ Database schema created successfully');
     } catch (error) {
@@ -1351,6 +1407,372 @@ class DatabaseService {
       messageCount: { min: minMessages, max: maxMessages },
       tagCount: tags.length,
       bookmarkedCount: bookmarks.length
+    };
+  }
+
+  // ==================== MESSAGE OPERATIONS ====================
+
+  /**
+   * Edit a message and track edit history
+   * @param messageId Message ID to edit
+   * @param newContent New message content
+   * @returns Updated message or null if not found
+   */
+  editMessage(messageId: string, newContent: string): ChatMessage | null {
+    if (!this.db) throw new Error('Database not initialized');
+
+    // Get original message
+    const originalMessage = this.query<ChatMessage>(
+      'SELECT * FROM chat_messages WHERE id = ?',
+      [messageId]
+    )[0];
+
+    if (!originalMessage) {
+      console.warn(`[DB] Message not found: ${messageId}`);
+      return null;
+    }
+
+    // Record edit history
+    const editHistoryId = `eh-${crypto.randomUUID()}`;
+    this.db.run(
+      `INSERT INTO message_edit_history (id, message_id, previous_content, edited_at)
+       VALUES (?, ?, ?, ?)`,
+      [editHistoryId, messageId, originalMessage.content, Date.now()]
+    );
+
+    // Update message content
+    this.db.run(
+      'UPDATE chat_messages SET content = ? WHERE id = ?',
+      [newContent, messageId]
+    );
+
+    // Update message metadata
+    this.db.run(
+      `INSERT OR REPLACE INTO message_metadata (message_id, last_modified)
+       VALUES (?, ?)`,
+      [messageId, Date.now()]
+    );
+
+    // Auto-save
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Edited message: ${messageId}`);
+
+    return {
+      ...originalMessage,
+      content: newContent
+    };
+  }
+
+  /**
+   * Get edit history for a message
+   * @param messageId Message ID
+   * @returns Array of edit history entries
+   */
+  getMessageEditHistory(messageId: string): MessageEditHistory[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    return this.query<MessageEditHistory>(
+      `SELECT id, message_id, previous_content, edited_at
+       FROM message_edit_history
+       WHERE message_id = ?
+       ORDER BY edited_at DESC`,
+      [messageId]
+    );
+  }
+
+  /**
+   * Delete a message from a conversation
+   * @param messageId Message ID to delete
+   * @returns true if successfully deleted, false if not found
+   */
+  deleteMessage(messageId: string): boolean {
+    if (!this.db) throw new Error('Database not initialized');
+
+    // Check if message exists
+    const message = this.query<ChatMessage>(
+      'SELECT id FROM chat_messages WHERE id = ?',
+      [messageId]
+    )[0];
+
+    if (!message) {
+      console.warn(`[DB] Message not found: ${messageId}`);
+      return false;
+    }
+
+    // Delete message
+    this.db.run('DELETE FROM chat_messages WHERE id = ?', [messageId]);
+
+    // Clean up related data
+    this.db.run('DELETE FROM message_edit_history WHERE message_id = ?', [messageId]);
+    this.db.run('DELETE FROM message_metadata WHERE message_id = ?', [messageId]);
+    this.db.run('DELETE FROM bookmarks WHERE message_id = ?', [messageId]);
+
+    // Auto-save
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Deleted message: ${messageId}`);
+
+    return true;
+  }
+
+  /**
+   * Pin a message in a conversation
+   * @param messageId Message ID to pin
+   * @returns true if successfully pinned
+   */
+  pinMessage(messageId: string): boolean {
+    if (!this.db) throw new Error('Database not initialized');
+
+    // Check if message exists
+    const message = this.query<ChatMessage>(
+      'SELECT id FROM chat_messages WHERE id = ?',
+      [messageId]
+    )[0];
+
+    if (!message) {
+      console.warn(`[DB] Message not found: ${messageId}`);
+      return false;
+    }
+
+    this.db.run(
+      `INSERT OR REPLACE INTO message_metadata (message_id, is_pinned, last_modified)
+       VALUES (?, ?, ?)`,
+      [messageId, 1, Date.now()]
+    );
+
+    // Auto-save
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Pinned message: ${messageId}`);
+
+    return true;
+  }
+
+  /**
+   * Unpin a message
+   * @param messageId Message ID to unpin
+   * @returns true if successfully unpinned
+   */
+  unpinMessage(messageId: string): boolean {
+    if (!this.db) throw new Error('Database not initialized');
+
+    this.db.run(
+      `UPDATE message_metadata SET is_pinned = 0, last_modified = ? WHERE message_id = ?`,
+      [Date.now(), messageId]
+    );
+
+    // Auto-save
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Unpinned message: ${messageId}`);
+
+    return true;
+  }
+
+  /**
+   * Get all pinned messages in a conversation
+   * @param conversationId Conversation ID
+   * @returns Array of pinned messages
+   */
+  getPinnedMessages(conversationId: string): ChatMessage[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    return this.query<ChatMessage>(
+      `SELECT cm.id, cm.conversation_id, cm.role, cm.content, cm.module_used, cm.trace_data, cm.timestamp
+       FROM chat_messages cm
+       JOIN message_metadata mm ON cm.id = mm.message_id
+       WHERE cm.conversation_id = ? AND mm.is_pinned = 1
+       ORDER BY cm.timestamp ASC`,
+      [conversationId]
+    );
+  }
+
+  /**
+   * Check if a message is pinned
+   * @param messageId Message ID
+   * @returns true if pinned, false otherwise
+   */
+  isMessagePinned(messageId: string): boolean {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const result = this.query<{ is_pinned: number }>(
+      'SELECT is_pinned FROM message_metadata WHERE message_id = ?',
+      [messageId]
+    )[0];
+
+    return result ? result.is_pinned === 1 : false;
+  }
+
+  /**
+   * Create a thread reply to a message
+   * @param parentMessageId Parent message ID
+   * @param replyMessage Reply message content
+   * @returns ID of the created reply message
+   */
+  createThreadReply(
+    parentMessageId: string,
+    replyMessage: Omit<ChatMessage, 'id' | 'timestamp'>
+  ): string {
+    if (!this.db) throw new Error('Database not initialized');
+
+    // Check if parent message exists
+    const parentMessage = this.query<ChatMessage>(
+      'SELECT id FROM chat_messages WHERE id = ?',
+      [parentMessageId]
+    )[0];
+
+    if (!parentMessage) {
+      throw new Error(`Parent message not found: ${parentMessageId}`);
+    }
+
+    // Create the reply message
+    const replyId = this.addMessage(replyMessage);
+
+    // Link it to the parent message
+    this.db.run(
+      `INSERT OR REPLACE INTO message_metadata (message_id, thread_parent_id, last_modified)
+       VALUES (?, ?, ?)`,
+      [replyId, parentMessageId, Date.now()]
+    );
+
+    // Auto-save
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Created thread reply: ${replyId} (parent: ${parentMessageId})`);
+
+    return replyId;
+  }
+
+  /**
+   * Get all thread replies for a message
+   * @param parentMessageId Parent message ID
+   * @returns Array of reply messages
+   */
+  getThreadReplies(parentMessageId: string): ChatMessage[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    return this.query<ChatMessage>(
+      `SELECT cm.id, cm.conversation_id, cm.role, cm.content, cm.module_used, cm.trace_data, cm.timestamp
+       FROM chat_messages cm
+       JOIN message_metadata mm ON cm.id = mm.message_id
+       WHERE mm.thread_parent_id = ?
+       ORDER BY cm.timestamp ASC`,
+      [parentMessageId]
+    );
+  }
+
+  /**
+   * Get thread count for a message
+   * @param messageId Message ID
+   * @returns Number of thread replies
+   */
+  getThreadCount(messageId: string): number {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const result = this.query<{ count: number }>(
+      `SELECT COUNT(*) as count FROM message_metadata WHERE thread_parent_id = ?`,
+      [messageId]
+    )[0];
+
+    return result?.count || 0;
+  }
+
+  /**
+   * Get message with all details (edits, pinned status, thread info)
+   * @param messageId Message ID
+   * @returns Message with details or null if not found
+   */
+  getMessageWithDetails(messageId: string): MessageWithDetails | null {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const message = this.query<ChatMessage>(
+      'SELECT id, conversation_id, role, content, module_used, trace_data, timestamp FROM chat_messages WHERE id = ?',
+      [messageId]
+    )[0];
+
+    if (!message) {
+      return null;
+    }
+
+    const metadata = this.query<{
+      is_pinned: number;
+      thread_parent_id: string | null;
+      last_modified: number;
+    }>(
+      'SELECT is_pinned, thread_parent_id, last_modified FROM message_metadata WHERE message_id = ?',
+      [messageId]
+    )[0];
+
+    const threadCount = this.getThreadCount(messageId);
+
+    return {
+      ...message,
+      edited_at: metadata?.last_modified,
+      is_pinned: metadata ? metadata.is_pinned === 1 : false,
+      thread_parent_id: metadata?.thread_parent_id || null,
+      thread_count: threadCount
+    };
+  }
+
+  /**
+   * Get conversation messages with all details (edits, pinned status, threads)
+   * @param conversationId Conversation ID
+   * @returns Array of messages with details
+   */
+  getConversationHistoryWithDetails(conversationId: string): MessageWithDetails[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const messages = this.getConversationHistory(conversationId);
+
+    return messages.map(msg => {
+      const detailedMsg = this.getMessageWithDetails(msg.id);
+      return detailedMsg || {
+        ...msg,
+        edited_at: undefined,
+        is_pinned: false,
+        thread_parent_id: null,
+        thread_count: 0
+      };
+    });
+  }
+
+  /**
+   * Get message statistics for a conversation
+   * @param conversationId Conversation ID
+   * @returns Object with message statistics
+   */
+  getMessageStats(conversationId: string): {
+    totalMessages: number;
+    pinnedCount: number;
+    editedCount: number;
+    threadedCount: number;
+  } {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const messages = this.getConversationHistory(conversationId);
+    const totalMessages = messages.length;
+
+    const pinnedCount = this.getPinnedMessages(conversationId).length;
+
+    const editedCount = this.query<{ count: number }>(
+      `SELECT COUNT(DISTINCT message_id) as count FROM message_edit_history
+       WHERE message_id IN (SELECT id FROM chat_messages WHERE conversation_id = ?)`,
+      [conversationId]
+    )[0]?.count || 0;
+
+    const threadedCount = this.query<{ count: number }>(
+      `SELECT COUNT(DISTINCT thread_parent_id) as count FROM message_metadata
+       WHERE thread_parent_id IS NOT NULL
+       AND thread_parent_id IN (SELECT id FROM chat_messages WHERE conversation_id = ?)`,
+      [conversationId]
+    )[0]?.count || 0;
+
+    return {
+      totalMessages,
+      pinnedCount,
+      editedCount,
+      threadedCount
     };
   }
 
