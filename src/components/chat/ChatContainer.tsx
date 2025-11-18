@@ -17,6 +17,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ChatInterface } from './ChatInterface';
 import { AdapterSelector } from '../AdapterSelector';
 import { ConversationSidebar } from '../ConversationSidebar';
+import { CognitiveStatusDashboard } from '../CognitiveStatusDashboard';
 import { dbService, type ChatMessage, type Conversation } from '../../services/db.service';
 import { initializeDatabase } from '../../db/init';
 import { adapterRegistry } from '../../modules/adapters';
@@ -41,6 +42,7 @@ export function ChatContainer() {
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showCognitivePanel, setShowCognitivePanel] = useState(false);
   const [modelStatus, setModelStatus] = useState<{
     ready: boolean;
     loading?: boolean;
@@ -719,18 +721,78 @@ export function ChatContainer() {
       />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <AdapterSelector />
-        <div style={{ flex: 1, overflow: 'hidden' }}>
-          <ChatInterface
-            messages={messages}
-            onSendMessage={handleSendMessage}
-            isLoading={isLoading}
-            loadingMessage={
-              selectedAdapterId === 'local_guardian'
-                ? 'Local AI is thinking...'
-                : `${adapterRegistry.get(selectedAdapterId)?.name} is thinking...`
-            }
-          />
+        {/* Header with adapter selector and dashboard toggle */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '0.5rem',
+          borderBottom: '1px solid rgba(229, 231, 235, 0.3)',
+          backgroundColor: 'rgba(249, 250, 251, 0.5)',
+        }}>
+          <div style={{ flex: 1 }}>
+            <AdapterSelector />
+          </div>
+          {/* Phase 3: Cognitive Status Dashboard Toggle */}
+          <button
+            onClick={() => setShowCognitivePanel(!showCognitivePanel)}
+            style={{
+              padding: '0.5rem 1rem',
+              margin: '0 0.5rem',
+              background: showCognitivePanel
+                ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                : 'rgba(102, 126, 234, 0.1)',
+              color: showCognitivePanel ? 'white' : '#667eea',
+              border: showCognitivePanel ? 'none' : '1px solid rgba(102, 126, 234, 0.3)',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={(e) => {
+              if (!showCognitivePanel) {
+                e.currentTarget.style.background = 'rgba(102, 126, 234, 0.15)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!showCognitivePanel) {
+                e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
+              }
+            }}
+          >
+            🧠 {showCognitivePanel ? 'Hide' : 'Show'} Dashboard
+          </button>
+        </div>
+
+        {/* Main chat area with optional dashboard panel */}
+        <div style={{ flex: 1, display: 'flex', overflow: 'hidden', gap: '0.5px' }}>
+          <div style={{ flex: showCognitivePanel ? 2 : 1, overflow: 'hidden', minWidth: '0' }}>
+            <ChatInterface
+              messages={messages}
+              onSendMessage={handleSendMessage}
+              isLoading={isLoading}
+              loadingMessage={
+                selectedAdapterId === 'local_guardian'
+                  ? 'Local AI is thinking...'
+                  : `${adapterRegistry.get(selectedAdapterId)?.name} is thinking...`
+              }
+            />
+          </div>
+
+          {/* Phase 3: Cognitive Status Dashboard Panel */}
+          {showCognitivePanel && (
+            <div style={{
+              flex: 1,
+              overflow: 'auto',
+              borderLeft: '1px solid rgba(229, 231, 235, 0.5)',
+              backgroundColor: 'rgba(249, 250, 251, 0.8)',
+              minWidth: '0',
+            }}>
+              <CognitiveStatusDashboard />
+            </div>
+          )}
         </div>
       </div>
     </div>
