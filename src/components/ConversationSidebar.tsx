@@ -258,12 +258,23 @@ export function ConversationSidebar({
   return (
     <>
       {/* Toggle button for mobile */}
-      <button className="sidebar-toggle" onClick={onToggle} title="Toggle conversations">
-        {isOpen ? '✕' : '💬'}
+      <button
+        className="sidebar-toggle"
+        onClick={onToggle}
+        aria-label="Toggle conversations sidebar"
+        aria-expanded={isOpen}
+        aria-controls="conversations-nav"
+      >
+        <span aria-hidden="true">{isOpen ? '✕' : '💬'}</span>
       </button>
 
       {/* Sidebar */}
-      <div className={`conversation-sidebar ${isOpen ? 'open' : 'closed'}`}>
+      <nav
+        id="conversations-nav"
+        className={`conversation-sidebar ${isOpen ? 'open' : 'closed'}`}
+        role="navigation"
+        aria-label="Conversations navigation"
+      >
         <div className="sidebar-header">
           <h2>Conversations</h2>
           <div className="sidebar-header-actions">
@@ -281,22 +292,31 @@ export function ConversationSidebar({
         </div>
 
         {/* Search Bar (Sprint 11) */}
-        <div className="sidebar-search">
+        <div className="sidebar-search" role="search">
+          <label htmlFor="conversation-search" className="sr-only">
+            Search conversations
+          </label>
           <input
+            id="conversation-search"
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={handleSearchKeyDown}
             placeholder="Search conversations..."
             className="search-input"
+            aria-label="Search conversations"
+            aria-describedby="search-instructions"
           />
+          <span id="search-instructions" className="sr-only">
+            Type at least 3 characters and press Enter to search
+          </span>
           <button
             onClick={handleSearch}
             disabled={isSearching || searchQuery.trim().length < 3}
             className="search-btn"
-            title="Search (Enter)"
+            aria-label={isSearching ? 'Searching...' : 'Search conversations'}
           >
-            {isSearching ? '⏳' : '🔍'}
+            <span aria-hidden="true">{isSearching ? '⏳' : '🔍'}</span>
           </button>
         </div>
 
@@ -310,9 +330,9 @@ export function ConversationSidebar({
           />
         )}
 
-        <div className="conversations-list">
+        <div className="conversations-list" role="list" aria-label="Conversation history">
           {conversations.length === 0 ? (
-            <div className="empty-conversations">
+            <div className="empty-conversations" role="status">
               <p>No conversations yet</p>
               <p className="empty-hint">Click "New" to start</p>
             </div>
@@ -323,6 +343,8 @@ export function ConversationSidebar({
                 className={`conversation-item ${
                   conversation.id === currentConversationId ? 'active' : ''
                 }`}
+                role="listitem"
+                aria-current={conversation.id === currentConversationId ? 'page' : undefined}
               >
                 {editingId === conversation.id ? (
                   <div className="conversation-edit">
@@ -363,27 +385,27 @@ export function ConversationSidebar({
                       <div className="conversation-title">{conversation.title}</div>
                       <div className="conversation-date">{formatDate(conversation.created_at)}</div>
                     </div>
-                    <div className="conversation-actions">
+                    <div className="conversation-actions" role="group" aria-label="Conversation actions">
                       <button
                         onClick={() => handleRename(conversation)}
                         className="conversation-action-btn"
-                        title="Rename"
+                        aria-label={`Rename conversation ${conversation.title}`}
                       >
-                        ✏️
+                        <span aria-hidden="true">✏️</span>
                       </button>
                       <button
                         onClick={() => handleExport(conversation)}
                         className="conversation-action-btn"
-                        title="Export"
+                        aria-label={`Export conversation ${conversation.title}`}
                       >
-                        💾
+                        <span aria-hidden="true">💾</span>
                       </button>
                       <button
                         onClick={() => handleDelete(conversation)}
                         className="conversation-action-btn delete-btn"
-                        title="Delete"
+                        aria-label={`Delete conversation ${conversation.title}`}
                       >
-                        🗑️
+                        <span aria-hidden="true">🗑️</span>
                       </button>
                     </div>
                   </>
@@ -395,29 +417,33 @@ export function ConversationSidebar({
 
         <div className="sidebar-footer">
           <div className="sidebar-footer-buttons">
-            <button className="export-all-btn" onClick={handleExportAll}>
-              📦 Export All
+            <button
+              className="export-all-btn"
+              onClick={handleExportAll}
+              aria-label="Export all conversations"
+            >
+              <span aria-hidden="true">📦</span> Export All
             </button>
             <button
               className="backup-btn"
               onClick={() => setShowBackupDialog(true)}
-              title="Encrypted Backups"
+              aria-label="Encrypted backups"
             >
-              🔐 Backup
+              <span aria-hidden="true">🔐</span> Backup
             </button>
             <button
               className="theme-btn"
               onClick={() => setShowThemeDialog(true)}
-              title="Themes & Appearance"
+              aria-label="Themes and appearance settings"
             >
-              🎨 Theme
+              <span aria-hidden="true">🎨</span> Theme
             </button>
           </div>
-          <div className="sidebar-stats">
+          <div className="sidebar-stats" role="status" aria-live="polite">
             {conversations.length} {conversations.length === 1 ? 'conversation' : 'conversations'}
           </div>
         </div>
-      </div>
+      </nav>
 
       {/* Overlay for mobile */}
       {isOpen && <div className="sidebar-overlay" onClick={onToggle} />}

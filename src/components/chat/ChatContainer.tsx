@@ -30,6 +30,7 @@ import { preferencesService } from '../../services/preferences.service';
 import { attachmentsService } from '../../services/attachments.service';
 import { documentParsingService } from '../../services/document.service';
 import { themeService } from '../../services/theme.service';
+import { accessibilityService } from '../../services/accessibility.service';
 import { useChatState } from '../../store/chat.store';
 import type { IChatCompletionRequest } from '../../modules/adapters';
 
@@ -91,6 +92,10 @@ export function ChatContainer() {
         // Initialize theme service
         themeService.initialize();
         console.log('[ChatContainer] Theme service initialized');
+
+        // Initialize accessibility service
+        accessibilityService.initialize();
+        console.log('[ChatContainer] Accessibility service initialized');
 
         // Apply user preferences
         const prefs = preferencesService.getPreferences();
@@ -247,6 +252,9 @@ export function ChatContainer() {
         };
 
         setMessages(prev => [...prev, userMessage]);
+
+        // Announce message sent to screen readers
+        accessibilityService.announce('Message sent', 'polite');
 
         // STEP 2: Track governance metrics (ARI + RDI)
         // ARI: Autonomy Retention Index - measures user autonomy
@@ -453,6 +461,9 @@ export function ChatContainer() {
 
         setMessages(prev => [...prev, assistantMessage]);
         console.log('[ChatContainer] ✅ Response received and saved');
+
+        // Announce response received to screen readers
+        accessibilityService.announce('Response received from AI', 'polite');
       } catch (error) {
         console.error('[ChatContainer] ❌ Failed to get response:', error);
 
@@ -471,6 +482,9 @@ export function ChatContainer() {
           };
 
           setMessages(prev => [...prev, abortMessage]);
+
+          // Announce request stopped
+          accessibilityService.announce('Request stopped by user', 'assertive');
         } else {
           // Other errors
           const errorMessage: ChatMessage = {
@@ -484,8 +498,11 @@ export function ChatContainer() {
           };
 
           setMessages(prev => [...prev, errorMessage]);
+
+          // Announce error
+          accessibilityService.announce(`Error: ${error instanceof Error ? error.message : 'Failed to get response'}`, 'assertive');
         }
-      } finally {
+      } finally{
         setIsLoading(false);
         setModuleState('IDLE');
         setAbortController(null); // Always clear abort controller
@@ -593,7 +610,18 @@ export function ChatContainer() {
       onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
       onFocusInput={handleFocusInput}
     >
-      <div style={{ height: '100%', display: 'flex' }}>
+      {/* Skip Links for Accessibility */}
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+      <a href="#conversations-nav" className="skip-link">
+        Skip to conversations
+      </a>
+
+      <div style={{ height: '100%', display: 'flex' }} lang="en">
+        {/* Screen reader only heading */}
+        <h1 className="sr-only">SML Guardian AI Chat Application</h1>
+
         <ConversationSidebar
           conversations={conversations}
           currentConversationId={currentConversation?.id || null}
@@ -604,9 +632,13 @@ export function ChatContainer() {
           onToggle={() => setSidebarOpen(!sidebarOpen)}
         />
 
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div
+          style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+          role="main"
+          aria-label="Chat interface"
+        >
           <AdapterSelector />
-          <div style={{ flex: 1, overflow: 'hidden' }}>
+          <div id="main-content" style={{ flex: 1, overflow: 'hidden' }}>
             <ChatInterface
               messages={messages}
               onSendMessage={handleSendMessage}

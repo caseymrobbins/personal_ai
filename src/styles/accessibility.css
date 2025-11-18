@@ -1,0 +1,313 @@
+/**
+ * Accessibility Styles (WCAG 2.1 AA Compliance)
+ *
+ * This file contains global accessibility utilities:
+ * - Screen reader only content
+ * - Skip links
+ * - Focus indicators
+ * - High contrast mode support
+ */
+
+/* Screen Reader Only - Hide visually but keep for screen readers */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Show when focused - useful for skip links */
+.sr-only-focusable:focus {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: inherit;
+  margin: inherit;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+/* Skip Links */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #000;
+  color: #fff;
+  padding: 8px 16px;
+  text-decoration: none;
+  z-index: 10000;
+  font-weight: 600;
+  border-radius: 0 0 4px 0;
+  transition: top 0.2s ease;
+}
+
+.skip-link:focus {
+  top: 0;
+  outline: 3px solid #667eea;
+  outline-offset: 2px;
+}
+
+/* Enhanced Focus Indicators */
+*:focus {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+
+/* Keyboard focus for buttons */
+button:focus-visible {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2);
+}
+
+/* Keyboard focus for inputs */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid #667eea;
+  outline-offset: 0px;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+
+/* Keyboard focus for links */
+a:focus-visible {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+  text-decoration: underline;
+}
+
+/* Focus within - for composite widgets */
+.focus-within:focus-within {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  /* Increase border visibility */
+  button,
+  input,
+  select,
+  textarea {
+    border-width: 2px;
+    border-style: solid;
+  }
+
+  /* Increase focus indicator */
+  *:focus-visible {
+    outline-width: 3px;
+    outline-offset: 3px;
+  }
+
+  /* Ensure sufficient contrast */
+  .conversation-item:hover,
+  button:hover {
+    border-color: currentColor;
+  }
+}
+
+/* Dark mode focus adjustments */
+@media (prefers-color-scheme: dark) {
+  .skip-link {
+    background: #fff;
+    color: #000;
+  }
+
+  *:focus-visible {
+    outline-color: #a78bfa;
+  }
+
+  button:focus-visible {
+    outline-color: #a78bfa;
+    box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.3);
+  }
+
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline-color: #a78bfa;
+    border-color: #a78bfa;
+    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.3);
+  }
+
+  a:focus-visible {
+    outline-color: #a78bfa;
+  }
+}
+
+/* Light mode focus adjustments */
+@media (prefers-color-scheme: light) {
+  .skip-link {
+    background: #000;
+    color: #fff;
+  }
+
+  *:focus-visible {
+    outline-color: #5a67d8;
+  }
+
+  button:focus-visible {
+    outline-color: #5a67d8;
+    box-shadow: 0 0 0 4px rgba(90, 103, 216, 0.2);
+  }
+
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline-color: #5a67d8;
+    border-color: #5a67d8;
+    box-shadow: 0 0 0 3px rgba(90, 103, 216, 0.2);
+  }
+
+  a:focus-visible {
+    outline-color: #5a67d8;
+  }
+}
+
+/* Ensure interactive elements are keyboard accessible */
+[role="button"],
+[role="link"],
+[role="menuitem"],
+[role="tab"] {
+  cursor: pointer;
+}
+
+/* Ensure disabled elements are not focusable */
+[disabled],
+[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Live regions - for screen reader announcements */
+[role="status"],
+[role="alert"],
+[aria-live] {
+  position: relative;
+}
+
+/* Alert styling */
+[role="alert"] {
+  padding: 12px 16px;
+  border-left: 4px solid #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 4px;
+  margin: 8px 0;
+}
+
+/* Status styling */
+[role="status"] {
+  padding: 8px;
+  border-radius: 4px;
+}
+
+/* Ensure sufficient touch targets (min 44x44px per WCAG) */
+button,
+a,
+input[type="checkbox"],
+input[type="radio"],
+select {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Exception for small icon buttons - add padding to meet minimum */
+.conversation-action-btn {
+  padding: 10px;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Ensure text is resizable up to 200% */
+html {
+  font-size: 16px; /* Base font size */
+}
+
+@media (max-width: 768px) {
+  html {
+    font-size: 14px; /* Slightly smaller on mobile */
+  }
+}
+
+/* Color contrast utilities */
+.high-contrast-text {
+  color: #000;
+  background: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .high-contrast-text {
+    color: #fff;
+    background: #000;
+  }
+}
+
+/* Ensure images have alt text reminders in dev */
+img:not([alt]) {
+  outline: 2px dashed #ef4444;
+  outline-offset: 2px;
+}
+
+/* Focus trap for modals/dialogs */
+.focus-trap {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+/* Ensure form labels are associated */
+label {
+  cursor: pointer;
+}
+
+/* Visually hidden but still announced */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
