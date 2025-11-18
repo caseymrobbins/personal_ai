@@ -16,6 +16,7 @@ import { dbService, type Conversation } from '../services/db.service';
 import { searchService, type SearchResult } from '../services/search.service';
 import { attachmentsService } from '../services/attachments.service';
 import { SearchResults } from './SearchResults';
+import { ImportDialog } from './import/ImportDialog';
 import './ConversationSidebar.css';
 
 export interface ConversationSidebarProps {
@@ -43,9 +44,16 @@ export function ConversationSidebar({
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
 
   const handleNewConversation = () => {
     onConversationCreate();
+  };
+
+  const handleImportComplete = (stats: any) => {
+    console.log('[ConversationSidebar] Import completed:', stats);
+    // Refresh conversation list
+    onConversationUpdate();
   };
 
   const handleSearch = async () => {
@@ -254,9 +262,18 @@ export function ConversationSidebar({
       <div className={`conversation-sidebar ${isOpen ? 'open' : 'closed'}`}>
         <div className="sidebar-header">
           <h2>Conversations</h2>
-          <button className="new-conversation-btn" onClick={handleNewConversation} title="New conversation">
-            ➕ New
-          </button>
+          <div className="sidebar-header-actions">
+            <button
+              className="import-conversation-btn"
+              onClick={() => setShowImportDialog(true)}
+              title="Import conversations from ChatGPT or Claude"
+            >
+              📥 Import
+            </button>
+            <button className="new-conversation-btn" onClick={handleNewConversation} title="New conversation">
+              ➕ New
+            </button>
+          </div>
         </div>
 
         {/* Search Bar (Sprint 11) */}
@@ -384,6 +401,13 @@ export function ConversationSidebar({
 
       {/* Overlay for mobile */}
       {isOpen && <div className="sidebar-overlay" onClick={onToggle} />}
+
+      {/* Import Dialog */}
+      <ImportDialog
+        isOpen={showImportDialog}
+        onClose={() => setShowImportDialog(false)}
+        onImportComplete={handleImportComplete}
+      />
     </>
   );
 }
