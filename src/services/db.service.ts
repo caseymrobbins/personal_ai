@@ -35,6 +35,23 @@ export interface ChatMessage {
   timestamp: number;
 }
 
+/**
+ * Tag interface for conversation tagging
+ */
+export interface Tag {
+  id: string;
+  name: string;
+  color?: string;
+  created_at: number;
+}
+
+/**
+ * Conversation with tags (enriched)
+ */
+export interface ConversationWithTags extends Conversation {
+  tags: Tag[];
+}
+
 class DatabaseService {
   private db: Database | null = null;
   private initialized = false;
@@ -156,6 +173,33 @@ class DatabaseService {
           prompt_embedding BLOB
         )
       `);
+
+      // Tags table (for conversation tagging)
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS tags (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL UNIQUE,
+          color TEXT,
+          created_at INTEGER NOT NULL
+        )
+      `);
+
+      // Conversation-Tag junction table (many-to-many)
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS conversation_tags (
+          conversation_id TEXT NOT NULL,
+          tag_id TEXT NOT NULL,
+          added_at INTEGER NOT NULL,
+          PRIMARY KEY (conversation_id, tag_id),
+          FOREIGN KEY (conversation_id) REFERENCES conversations(id),
+          FOREIGN KEY (tag_id) REFERENCES tags(id)
+        )
+      `);
+
+      // Create indexes for better query performance
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_tags_conversation ON conversation_tags(conversation_id)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_tags_tag ON conversation_tags(tag_id)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name)`);
 
       console.log('[DB] ✅ Database schema created successfully');
     } catch (error) {
@@ -631,6 +675,242 @@ class DatabaseService {
     );
 
     return results.map(row => row.prompt_embedding);
+  }
+
+  // ============================================================================
+  // TAG MANAGEMENT METHODS (Sprint 16: Tags & Categories)
+  // ============================================================================
+
+  /**
+   * Create a new tag
+   * @param name Tag name (unique)
+   * @param color Optional color for UI (hex code)
+   * @returns The created tag
+   */
+  createTag(name: string, color?: string): Tag {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const id = `tag-${crypto.randomUUID()}`;
+    const created_at = Date.now();
+
+    this.db.run(
+      'INSERT INTO tags (id, name, color, created_at) VALUES (?, ?, ?, ?)',
+      [id, name, color || null, created_at]
+    );
+
+    // Auto-save after creating tag
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Created tag: ${name} (${id})`);
+
+    return { id, name, color, created_at };
+  }
+
+  /**
+   * Get all tags, ordered alphabetically
+   * @returns Array of all tags
+   */
+  getAllTags(): Tag[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    return this.query<Tag>(
+      'SELECT id, name, color, created_at FROM tags ORDER BY name ASC'
+    );
+  }
+
+  /**
+   * Get tags for a specific conversation
+   * @param conversationId Conversation ID
+   * @returns Array of tags for the conversation
+   */
+  getConversationTags(conversationId: string): Tag[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    return this.query<Tag>(
+      `SELECT t.id, t.name, t.color, t.created_at
+       FROM tags t
+       INNER JOIN conversation_tags ct ON t.id = ct.tag_id
+       WHERE ct.conversation_id = ?
+       ORDER BY t.name ASC`,
+      [conversationId]
+    );
+  }
+
+  /**
+   * Add a tag to a conversation
+   * @param conversationId Conversation ID
+   * @param tagId Tag ID
+   */
+  addTagToConversation(conversationId: string, tagId: string): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const added_at = Date.now();
+
+    try {
+      this.db.run(
+        'INSERT OR IGNORE INTO conversation_tags (conversation_id, tag_id, added_at) VALUES (?, ?, ?)',
+        [conversationId, tagId, added_at]
+      );
+
+      // Auto-save after adding tag
+      this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+      console.log(`[DB] Added tag ${tagId} to conversation ${conversationId}`);
+    } catch (error) {
+      console.error('[DB] Failed to add tag:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove a tag from a conversation
+   * @param conversationId Conversation ID
+   * @param tagId Tag ID
+   */
+  removeTagFromConversation(conversationId: string, tagId: string): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    this.db.run(
+      'DELETE FROM conversation_tags WHERE conversation_id = ? AND tag_id = ?',
+      [conversationId, tagId]
+    );
+
+    // Auto-save after removing tag
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Removed tag ${tagId} from conversation ${conversationId}`);
+  }
+
+  /**
+   * Get conversations with a specific tag
+   * @param tagId Tag ID
+   * @returns Array of conversations with that tag
+   */
+  getConversationsByTag(tagId: string): Conversation[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    return this.query<Conversation>(
+      `SELECT c.id, c.title, c.created_at
+       FROM conversations c
+       INNER JOIN conversation_tags ct ON c.id = ct.conversation_id
+       WHERE ct.tag_id = ?
+       ORDER BY c.created_at DESC`,
+      [tagId]
+    );
+  }
+
+  /**
+   * Get conversations with all specified tags (AND filter)
+   * @param tagIds Array of tag IDs
+   * @returns Array of conversations that have all the specified tags
+   */
+  getConversationsByAllTags(tagIds: string[]): Conversation[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    if (tagIds.length === 0) {
+      return this.getConversations();
+    }
+
+    const placeholders = tagIds.map(() => '?').join(',');
+    const sql = `
+      SELECT c.id, c.title, c.created_at
+      FROM conversations c
+      WHERE c.id IN (
+        SELECT ct.conversation_id
+        FROM conversation_tags ct
+        WHERE ct.tag_id IN (${placeholders})
+        GROUP BY ct.conversation_id
+        HAVING COUNT(DISTINCT ct.tag_id) = ?
+      )
+      ORDER BY c.created_at DESC
+    `;
+
+    return this.query<Conversation>(sql, [...tagIds, tagIds.length]);
+  }
+
+  /**
+   * Get conversations with any of the specified tags (OR filter)
+   * @param tagIds Array of tag IDs
+   * @returns Array of conversations that have any of the specified tags
+   */
+  getConversationsByAnyTag(tagIds: string[]): Conversation[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    if (tagIds.length === 0) {
+      return [];
+    }
+
+    const placeholders = tagIds.map(() => '?').join(',');
+    const sql = `
+      SELECT DISTINCT c.id, c.title, c.created_at
+      FROM conversations c
+      INNER JOIN conversation_tags ct ON c.id = ct.conversation_id
+      WHERE ct.tag_id IN (${placeholders})
+      ORDER BY c.created_at DESC
+    `;
+
+    return this.query<Conversation>(sql, tagIds);
+  }
+
+  /**
+   * Get tag statistics
+   * @returns Statistics about tags usage
+   */
+  getTagStats(): { totalTags: number; tagUsage: Array<{ tagId: string; tagName: string; count: number }> } {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const tagUsage = this.query<{ tag_id: string; name: string; count: number }>(
+      `SELECT t.id as tag_id, t.name, COUNT(*) as count
+       FROM tags t
+       LEFT JOIN conversation_tags ct ON t.id = ct.tag_id
+       GROUP BY t.id, t.name
+       ORDER BY count DESC`
+    );
+
+    return {
+      totalTags: tagUsage.length,
+      tagUsage: tagUsage.map(row => ({
+        tagId: row.tag_id,
+        tagName: row.name,
+        count: row.count
+      }))
+    };
+  }
+
+  /**
+   * Delete a tag and remove it from all conversations
+   * @param tagId Tag ID
+   */
+  deleteTag(tagId: string): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    // Delete the tag from all conversations first
+    this.db.run('DELETE FROM conversation_tags WHERE tag_id = ?', [tagId]);
+
+    // Then delete the tag itself
+    this.db.run('DELETE FROM tags WHERE id = ?', [tagId]);
+
+    // Auto-save after deletion
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Deleted tag: ${tagId}`);
+  }
+
+  /**
+   * Get conversation with its tags (enriched)
+   * @param id Conversation ID
+   * @returns Conversation with associated tags
+   */
+  getConversationWithTags(id: string): ConversationWithTags | null {
+    const conversation = this.getConversation(id);
+    if (!conversation) return null;
+
+    const tags = this.getConversationTags(id);
+
+    return {
+      ...conversation,
+      tags
+    };
   }
 
   /**
