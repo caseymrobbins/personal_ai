@@ -29,6 +29,7 @@ import { socraticService } from '../../services/socratic.service';
 import { preferencesService } from '../../services/preferences.service';
 import { attachmentsService } from '../../services/attachments.service';
 import { documentParsingService } from '../../services/document.service';
+import { themeService } from '../../services/theme.service';
 import { useChatState } from '../../store/chat.store';
 import type { IChatCompletionRequest } from '../../modules/adapters';
 
@@ -86,6 +87,10 @@ export function ChatContainer() {
         // Initialize user preferences
         await preferencesService.initialize();
         console.log('[ChatContainer] Preferences loaded');
+
+        // Initialize theme service
+        themeService.initialize();
+        console.log('[ChatContainer] Theme service initialized');
 
         // Apply user preferences
         const prefs = preferencesService.getPreferences();
