@@ -45,6 +45,52 @@
   font-size: 0.75rem;
 }
 
+/* Image attachments */
+.message-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.message-attachment-image {
+  position: relative;
+  max-width: 300px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease;
+}
+
+.message-attachment-image:hover {
+  transform: scale(1.02);
+}
+
+.message-attachment-image img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 400px;
+  object-fit: contain;
+}
+
+.attachment-filename {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  font-size: 0.75rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.message-attachment-image:hover .attachment-filename {
+  opacity: 1;
+}
+
 .message-content {
   line-height: 1.6;
   white-space: pre-wrap;

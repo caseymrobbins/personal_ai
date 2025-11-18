@@ -26,6 +26,7 @@ import { embeddingsService } from '../../services/embeddings.service';
 import { rdiService } from '../../services/rdi.service';
 import { socraticService } from '../../services/socratic.service';
 import { preferencesService } from '../../services/preferences.service';
+import { attachmentsService } from '../../services/attachments.service';
 import { useChatState } from '../../store/chat.store';
 import type { IChatCompletionRequest } from '../../modules/adapters';
 
@@ -166,7 +167,7 @@ export function ChatContainer() {
 
   // Handle sending a message
   const handleSendMessage = useCallback(
-    async (content: string) => {
+    async (content: string, imageFiles?: File[]) => {
       if (!currentConversation) {
         console.error('[ChatContainer] No active conversation');
         return;
@@ -196,6 +197,21 @@ export function ChatContainer() {
           module_used: null,
           trace_data: null,
         });
+
+        // STEP 1.5: Process and attach images if provided
+        if (imageFiles && imageFiles.length > 0) {
+          console.log(`[ChatContainer] Processing ${imageFiles.length} image(s)...`);
+
+          for (const file of imageFiles) {
+            try {
+              await attachmentsService.addImageAttachment(userMessageId, file);
+              console.log(`[ChatContainer] ✅ Attached image: ${file.name}`);
+            } catch (error) {
+              console.error(`[ChatContainer] ❌ Failed to attach image ${file.name}:`, error);
+              // Continue with other images even if one fails
+            }
+          }
+        }
 
         // Update UI with user message
         const userMessage: ChatMessage = {

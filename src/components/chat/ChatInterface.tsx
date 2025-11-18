@@ -14,7 +14,7 @@ import './ChatInterface.css';
 
 export interface ChatInterfaceProps {
   messages: ChatMessage[];
-  onSendMessage: (message: string) => void;
+  onSendMessage: (message: string, imageFiles?: File[]) => void;
   isLoading?: boolean;
   loadingMessage?: string;
 }
@@ -51,6 +51,7 @@ export function ChatInterface({
             {messages.map((msg) => (
               <MessageBubble
                 key={msg.id}
+                messageId={msg.id}
                 role={msg.role}
                 content={msg.content}
                 timestamp={msg.timestamp}

@@ -35,6 +35,20 @@ export interface ChatMessage {
   timestamp: number;
 }
 
+/**
+ * Message attachment interface
+ */
+export interface MessageAttachment {
+  id: string;
+  message_id: string;
+  type: 'image' | 'file';
+  mime_type: string;
+  filename: string;
+  data: string; // base64 encoded
+  size: number;
+  created_at: number;
+}
+
 class DatabaseService {
   private db: Database | null = null;
   private initialized = false;
@@ -134,6 +148,21 @@ class DatabaseService {
           trace_data TEXT,
           timestamp INTEGER NOT NULL,
           FOREIGN KEY (conversation_id) REFERENCES conversations(id)
+        )
+      `);
+
+      // Message attachments table (for images and files)
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS message_attachments (
+          id TEXT PRIMARY KEY,
+          message_id TEXT NOT NULL,
+          type TEXT NOT NULL CHECK(type IN ('image', 'file')),
+          mime_type TEXT NOT NULL,
+          filename TEXT NOT NULL,
+          data TEXT NOT NULL,
+          size INTEGER NOT NULL,
+          created_at INTEGER NOT NULL,
+          FOREIGN KEY (message_id) REFERENCES chat_messages(id) ON DELETE CASCADE
         )
       `);
 
@@ -372,6 +401,84 @@ class DatabaseService {
        FROM chat_messages
        ORDER BY timestamp ASC`
     );
+  }
+
+  /**
+   * Add an attachment to a message
+   * @param attachment Attachment data without id and created_at
+   * @returns The attachment ID
+   */
+  addAttachment(attachment: Omit<MessageAttachment, 'id' | 'created_at'>): string {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const id = `att-${crypto.randomUUID()}`;
+    const created_at = Date.now();
+
+    this.db.run(
+      `INSERT INTO message_attachments (id, message_id, type, mime_type, filename, data, size, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        attachment.message_id,
+        attachment.type,
+        attachment.mime_type,
+        attachment.filename,
+        attachment.data,
+        attachment.size,
+        created_at
+      ]
+    );
+
+    // Auto-save after adding attachment
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Added attachment: ${id} (${attachment.filename})`);
+
+    return id;
+  }
+
+  /**
+   * Get all attachments for a message
+   * @param messageId Message ID
+   * @returns Array of attachments
+   */
+  getMessageAttachments(messageId: string): MessageAttachment[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    return this.query<MessageAttachment>(
+      `SELECT id, message_id, type, mime_type, filename, data, size, created_at
+       FROM message_attachments
+       WHERE message_id = ?
+       ORDER BY created_at ASC`,
+      [messageId]
+    );
+  }
+
+  /**
+   * Delete an attachment
+   * @param id Attachment ID
+   */
+  deleteAttachment(id: string): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    this.db.run('DELETE FROM message_attachments WHERE id = ?', [id]);
+
+    // Auto-save after deleting
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Deleted attachment: ${id}`);
+  }
+
+  /**
+   * Delete all attachments for a message
+   * @param messageId Message ID
+   */
+  deleteMessageAttachments(messageId: string): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    this.db.run('DELETE FROM message_attachments WHERE message_id = ?', [messageId]);
+
+    console.log(`[DB] Deleted attachments for message: ${messageId}`);
   }
 
   /**
