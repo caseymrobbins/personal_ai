@@ -7,6 +7,7 @@
 import { useState, useEffect } from 'react';
 import { preferencesService, type UserPreferences } from '../services/preferences.service';
 import { ConversationImporter } from './ConversationImporter';
+import { EncryptedBackupManager } from './EncryptedBackupManager';
 import './SettingsModal.css';
 
 export interface SettingsModalProps {
@@ -237,6 +238,10 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
           {activeTab === 'data' && (
             <div className="settings-section">
               <ConversationImporter />
+
+              <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                <EncryptedBackupManager />
+              </div>
             </div>
           )}
 
