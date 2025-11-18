@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="256" fill="url(#grad)"/>
+
+  <!-- Brain icon (🧠 inspired) -->
+  <g transform="translate(256, 256)">
+    <!-- Left hemisphere -->
+    <path d="M -80 -40 Q -120 -80 -100 -140 Q -80 -160 -40 -150 Q -60 -100 -80 -40 Z"
+          fill="#ffffff" opacity="0.95"/>
+    <ellipse cx="-100" cy="-100" rx="35" ry="45" fill="#ffffff" opacity="0.9"/>
+
+    <!-- Right hemisphere -->
+    <path d="M 80 -40 Q 120 -80 100 -140 Q 80 -160 40 -150 Q 60 -100 80 -40 Z"
+          fill="#ffffff" opacity="0.95"/>
+    <ellipse cx="100" cy="-100" rx="35" ry="45" fill="#ffffff" opacity="0.9"/>
+
+    <!-- Center/stem -->
+    <path d="M -30 20 Q 0 60 30 20 Q 20 40 0 50 Q -20 40 -30 20 Z"
+          fill="#ffffff" opacity="0.9"/>
+
+    <!-- Accent dots (neurons/connections) -->
+    <circle cx="-60" cy="-80" r="8" fill="#48bb78" opacity="0.8"/>
+    <circle cx="60" cy="-80" r="8" fill="#48bb78" opacity="0.8"/>
+    <circle cx="0" cy="-120" r="6" fill="#f6ad55" opacity="0.8"/>
+    <circle cx="-40" cy="-40" r="5" fill="#4299e1" opacity="0.8"/>
+    <circle cx="40" cy="-40" r="5" fill="#4299e1" opacity="0.8"/>
+
+    <!-- Connection lines -->
+    <line x1="-60" y1="-80" x2="0" y2="-120" stroke="#ffffff" stroke-width="2" opacity="0.6"/>
+    <line x1="60" y1="-80" x2="0" y2="-120" stroke="#ffffff" stroke-width="2" opacity="0.6"/>
+  </g>
+</svg>

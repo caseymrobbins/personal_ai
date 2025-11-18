@@ -91,12 +91,75 @@ class DatabaseService {
         // Create new database
         this.db = new SQL.Database();
         console.log('[DB] Created new database');
+
+        // Initialize schema for new databases
+        this.createSchema();
       }
 
       this.initialized = true;
       console.log('[DB] ✅ WASM-SQLite initialized successfully');
     } catch (error) {
       console.error('[DB] ❌ Failed to initialize:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create database schema for new databases
+   * This initializes all required tables
+   */
+  private createSchema(): void {
+    if (!this.db) throw new Error('Database not initialized');
+
+    try {
+      console.log('[DB] Creating database schema...');
+
+      // Conversations table
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS conversations (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        )
+      `);
+
+      // Chat messages table
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS chat_messages (
+          id TEXT PRIMARY KEY,
+          conversation_id TEXT NOT NULL,
+          role TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'system')),
+          content TEXT NOT NULL,
+          module_used TEXT,
+          trace_data TEXT,
+          timestamp INTEGER NOT NULL,
+          FOREIGN KEY (conversation_id) REFERENCES conversations(id)
+        )
+      `);
+
+      // API Keys table (for encrypted API key storage)
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS api_keys (
+          provider TEXT PRIMARY KEY,
+          encrypted_key TEXT NOT NULL
+        )
+      `);
+
+      // Governance Log table (for ARI/RDI tracking)
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS governance_log (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          timestamp INTEGER NOT NULL,
+          user_prompt_hash TEXT NOT NULL,
+          lexical_density REAL NOT NULL,
+          syntactic_complexity REAL NOT NULL,
+          prompt_embedding BLOB
+        )
+      `);
+
+      console.log('[DB] ✅ Database schema created successfully');
+    } catch (error) {
+      console.error('[DB] ❌ Failed to create schema:', error);
       throw error;
     }
   }
