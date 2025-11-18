@@ -16,13 +16,30 @@ import { workingMemoryService } from './working-memory.service';
 import { longTermMemoryService } from './long-term-memory.service';
 import { userModelService } from './user-model.service';
 import { cognitiveSchedulerService } from './cognitive-scheduler.service';
+import { autonomousTaskHandlersService } from './autonomous-task-handlers.service';
+// Phase 4: Autonomous Decision Making
+import { taskBudgetManagerService, type TaskCost } from './task-budget-manager.service';
+import { riskAssessmentService, type RiskAssessment } from './risk-assessment.service';
+import { taskPrioritySchedulerService, type AutonomousTask } from './task-priority-scheduler.service';
 
 export interface GoalEvaluationTriggerResult {
   evaluatedAt: number;
+  cycleId: string;
   goalsEvaluated: number;
   goalsCompleted: number;
   goalsStalled: number;
   progressUpdates: number;
+  // Phase 4: Autonomous Decision Making metrics
+  autonomousTasksCandidates: number;
+  autonomousTasksExecuted: number;
+  autonomousTasksFailed: number;
+  budgetAllocated: number;
+  budgetUsed: number;
+  budgetUtilization: number;
+  tasksSkippedDueToRisk: number;
+  risksAssessed: number;
+  riskSummary: string;
+  //
   newTasksCreated: number;
   recommendations: string[];
   autonomyAdjustments: number;
@@ -60,12 +77,26 @@ class GoalEvaluationTriggerService {
    */
   async evaluateCycle(): Promise<GoalEvaluationTriggerResult> {
     const cycleStartTime = Date.now();
+    const cycleId = `cycle-${cycleStartTime}`;
+
     const result: GoalEvaluationTriggerResult = {
       evaluatedAt: cycleStartTime,
+      cycleId,
       goalsEvaluated: 0,
       goalsCompleted: 0,
       goalsStalled: 0,
       progressUpdates: 0,
+      // Phase 4
+      autonomousTasksCandidates: 0,
+      autonomousTasksExecuted: 0,
+      autonomousTasksFailed: 0,
+      budgetAllocated: 0,
+      budgetUsed: 0,
+      budgetUtilization: 0,
+      tasksSkippedDueToRisk: 0,
+      risksAssessed: 0,
+      riskSummary: '',
+      //
       newTasksCreated: 0,
       recommendations: [],
       autonomyAdjustments: 0,
@@ -119,16 +150,34 @@ class GoalEvaluationTriggerService {
       const autonomyAdjustments = await this.adjustAutonomyLevels(activeGoals);
       result.autonomyAdjustments = autonomyAdjustments;
 
-      // Step 7: Generate autonomous tasks for relevant goals
-      const tasksCreated = await this.generateAutonomousTasks(activeGoals);
-      result.newTasksCreated = tasksCreated;
+      // Step 7: Phase 4 - Generate and execute autonomous tasks with intelligent decision making
+      const taskExecutionResult = await this.executeAutonomousTasksWithDecisionMaking(
+        activeGoals,
+        cycleId,
+        result
+      );
+      result.autonomousTasksCandidates = taskExecutionResult.candidates;
+      result.autonomousTasksExecuted = taskExecutionResult.executed;
+      result.autonomousTasksFailed = taskExecutionResult.failed;
+      result.budgetAllocated = taskExecutionResult.budgetAllocated;
+      result.budgetUsed = taskExecutionResult.budgetUsed;
+      result.budgetUtilization = taskExecutionResult.budgetUtilization;
+      result.tasksSkippedDueToRisk = taskExecutionResult.skippedDueToRisk;
+      result.risksAssessed = taskExecutionResult.risksAssessed;
+      result.riskSummary = taskExecutionResult.riskSummary;
+      result.newTasksCreated = taskExecutionResult.executed;
+
+      // Close out the budget cycle
+      taskBudgetManagerService.closeCycle(cycleId);
 
       // Step 8: Store evaluation result
       this.evaluationHistory.push(result);
       this.lastEvaluationTime = cycleStartTime;
 
       console.log(
-        `[GoalEvaluationTrigger] ✅ Evaluation complete: ${result.goalsEvaluated} goals evaluated, ${result.progressUpdates} progress updates, ${result.newTasksCreated} tasks created`
+        `[GoalEvaluationTrigger] ✅ Evaluation complete: ${result.goalsEvaluated} goals evaluated, ` +
+        `${result.progressUpdates} progress updates, ${result.autonomousTasksExecuted} tasks executed ` +
+        `(budget: ${result.budgetUtilization.toFixed(0)}%)`
       );
 
       return result;
@@ -294,10 +343,153 @@ class GoalEvaluationTriggerService {
   }
 
   /**
-   * Generate autonomous tasks for relevant goals
+   * Phase 4: Execute autonomous tasks with intelligent decision making
+   * Integrates budget management, risk assessment, and task prioritization
    */
-  private async generateAutonomousTasks(goals: Goal[]): Promise<number> {
-    let tasksCreated = 0;
+  private async executeAutonomousTasksWithDecisionMaking(
+    goals: Goal[],
+    cycleId: string,
+    result: GoalEvaluationTriggerResult
+  ): Promise<{
+    candidates: number;
+    executed: number;
+    failed: number;
+    budgetAllocated: number;
+    budgetUsed: number;
+    budgetUtilization: number;
+    skippedDueToRisk: number;
+    risksAssessed: number;
+    riskSummary: string;
+  }> {
+    // PHASE 4 STEP 1: Allocate budget for this cycle
+    const budget = taskBudgetManagerService.allocateBudget(cycleId);
+
+    console.log(
+      `[GoalEvaluationTrigger] 💰 Phase 4 Step 1: Budget allocated - ` +
+      `Total: ${budget.totalBudget}ms, Available: ${budget.availableBudget}ms`
+    );
+
+    // PHASE 4 STEP 2: Generate candidate autonomous tasks
+    const taskCandidates = this.generateTaskCandidates(goals);
+    console.log(`[GoalEvaluationTrigger] 📋 Phase 4 Step 2: Generated ${taskCandidates.length} task candidates`);
+
+    // PHASE 4 STEP 3: Assess risk for each candidate
+    const riskAssessments = new Map<string, RiskAssessment>();
+    for (const task of taskCandidates) {
+      const assessment = riskAssessmentService.assessTask(task.taskType, task.payload);
+      riskAssessments.set(task.taskType, assessment);
+    }
+    console.log(`[GoalEvaluationTrigger] 🔍 Phase 4 Step 3: Assessed risks for ${riskAssessments.size} task types`);
+
+    // PHASE 4 STEP 4: Score and prioritize tasks
+    const scoredTasks = taskPrioritySchedulerService.scoreTasks(taskCandidates, {
+      activeGoalCount: goals.length,
+      stalledGoalCount: goals.filter(g => {
+        const daysSinceUpdate = (Date.now() - (g.updatedAt || 0)) / (1000 * 60 * 60 * 24);
+        return daysSinceUpdate > 7;
+      }).length,
+      budgetAvailable: budget.availableBudget,
+      riskAssessments,
+    });
+
+    // PHASE 4 STEP 5: Build execution queue respecting budget and risk
+    const queue = taskPrioritySchedulerService.buildExecutionQueue(scoredTasks, budget.availableBudget);
+    console.log(
+      `[GoalEvaluationTrigger] 🎯 Phase 4 Step 5: Built execution queue with ${queue.tasks.length} tasks ` +
+      `(${queue.estimatedTotalTime}ms of ${budget.availableBudget}ms)`
+    );
+
+    // PHASE 4 STEP 6: Execute tasks in priority order
+    let tasksExecuted = 0;
+    let tasksFailed = 0;
+    const skippedDueToRisk = queue.tasksSkipped.length;
+
+    for (const task of queue.tasks) {
+      // Check if we still have budget
+      if (!taskBudgetManagerService.shouldContinueExecuting(cycleId)) {
+        console.log(`[GoalEvaluationTrigger] ⏸️ Budget exhausted, stopping task execution`);
+        break;
+      }
+
+      const startTime = Date.now();
+      try {
+        console.log(`[GoalEvaluationTrigger] ▶️ Executing task: ${task.taskType} (priority: ${task.score.toFixed(2)})`);
+
+        const execResult = await autonomousTaskHandlersService.executeTask(
+          task.taskId,
+          task.taskType as any,
+          task.payload
+        );
+
+        const executionTime = Date.now() - startTime;
+        const cost: TaskCost = {
+          taskId: task.taskId,
+          taskType: task.taskType,
+          executionTime,
+          memoryPeakMB: 0, // Will be calculated by task handler
+          dbQueriesCount: 0, // Will be calculated by task handler
+          serviceCallsCount: 0, // Will be calculated by task handler
+          success: execResult.success,
+        };
+
+        taskBudgetManagerService.recordTaskCost(cycleId, cost);
+        tasksExecuted++;
+
+        // Update success rate based on execution
+        taskPrioritySchedulerService.updateSuccessRate(task.taskType, execResult.success);
+
+        if (execResult.success) {
+          riskAssessmentService.recordSuccess(task.taskType);
+          console.log(
+            `[GoalEvaluationTrigger] ✅ Task ${task.taskType} succeeded ` +
+            `(${executionTime}ms, insights: ${execResult.insightsGenerated.length})`
+          );
+        } else {
+          riskAssessmentService.recordFailure(task.taskType, new Error(execResult.errors?.join(', ') || 'Unknown error'));
+          tasksFailed++;
+          console.warn(
+            `[GoalEvaluationTrigger] ❌ Task ${task.taskType} failed: ` +
+            `${execResult.errors?.join(', ') || 'Unknown error'}`
+          );
+        }
+      } catch (error) {
+        tasksFailed++;
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        riskAssessmentService.recordFailure(task.taskType, new Error(errorMsg));
+        console.error(`[GoalEvaluationTrigger] ❌ Failed to execute task ${task.taskType}:`, error);
+      }
+    }
+
+    // PHASE 4 STEP 7: Gather final statistics
+    const finalStats = taskBudgetManagerService.getCycleStats(cycleId);
+    const systemHealth = riskAssessmentService.getSystemHealth();
+
+    const utilization = finalStats ? finalStats.utilizationPercent : 0;
+
+    console.log(
+      `[GoalEvaluationTrigger] 📊 Phase 4 Step 7: Execution summary - ` +
+      `${tasksExecuted} executed, ${tasksFailed} failed, ${skippedDueToRisk} skipped (risk), ` +
+      `Budget utilization: ${utilization.toFixed(0)}%`
+    );
+
+    return {
+      candidates: taskCandidates.length,
+      executed: tasksExecuted,
+      failed: tasksFailed,
+      budgetAllocated: budget.availableBudget,
+      budgetUsed: finalStats?.budgetUsed || 0,
+      budgetUtilization: utilization,
+      skippedDueToRisk,
+      risksAssessed: riskAssessments.size,
+      riskSummary: queue.riskSummary,
+    };
+  }
+
+  /**
+   * Generate candidate autonomous tasks from active goals
+   */
+  private generateTaskCandidates(goals: Goal[]): AutonomousTask[] {
+    const candidates: AutonomousTask[] = [];
 
     // Get goals that are urgent or have low progress
     const urgentGoals = goalManagementService.getUrgentGoals();
@@ -305,30 +497,25 @@ class GoalEvaluationTriggerService {
     const candidateGoals = [...new Set([...urgentGoals, ...lowProgressGoals])];
 
     for (const goal of candidateGoals) {
-      // Only create autonomous tasks if agent has high autonomy
-      if (goal.autonomyLevel >= 0.6) {
-        const task = cognitiveSchedulerService.addTask(
-          goal.source === 'user' ? 'goal_research' : 'goal_analysis',
-          `Work on goal: ${goal.title}`,
-          goal.priority === 'critical' ? 'critical' : 'high',
-          {
-            parentGoalId: goal.id,
-            estimatedDurationMs: 30000,
-            metadata: {
-              goalId: goal.id,
-              progressTarget: Math.min(goal.progress + 0.1, 1),
-            },
-          }
-        );
+      // Only create autonomous tasks if agent has sufficient autonomy
+      if (goal.autonomyLevel >= 0.4) {
+        const taskType = goal.source === 'user' ? 'goal_research' : 'goal_analysis';
 
-        tasksCreated++;
-        console.log(
-          `[GoalEvaluationTrigger] 🎯 Autonomous task created for goal: ${goal.title}`
-        );
+        candidates.push({
+          taskId: `task-${goal.id}-${Date.now()}`,
+          taskType,
+          dependsOn: [],
+          payload: {
+            goalId: goal.id,
+            goalTitle: goal.title,
+            progressTarget: Math.min(goal.progress + 0.1, 1),
+            priority: goal.priority === 'critical' ? 'critical' : 'high',
+          },
+        });
       }
     }
 
-    return tasksCreated;
+    return candidates;
   }
 
   /**
