@@ -20,6 +20,7 @@ import { ImportDialog } from './import/ImportDialog';
 import { BackupDialog } from './backup/BackupDialog';
 import { ThemeDialog } from './theme/ThemeDialog';
 import { ShareDialog } from './p2p/ShareDialog';
+import { ExportLinkDialog } from './export/ExportLinkDialog';
 import './ConversationSidebar.css';
 
 export interface ConversationSidebarProps {
@@ -53,6 +54,9 @@ export function ConversationSidebar({
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [shareConversationId, setShareConversationId] = useState<string | null>(null);
   const [shareConversationTitle, setShareConversationTitle] = useState('');
+  const [showExportLinkDialog, setShowExportLinkDialog] = useState(false);
+  const [exportLinkConversationId, setExportLinkConversationId] = useState<string | null>(null);
+  const [exportLinkConversationTitle, setExportLinkConversationTitle] = useState('');
 
   const handleNewConversation = () => {
     onConversationCreate();
@@ -190,6 +194,12 @@ export function ConversationSidebar({
     setShareConversationId(conversation.id);
     setShareConversationTitle(conversation.title);
     setShowShareDialog(true);
+  };
+
+  const handleExportLink = (conversation: Conversation) => {
+    setExportLinkConversationId(conversation.id);
+    setExportLinkConversationTitle(conversation.title);
+    setShowExportLinkDialog(true);
   };
 
   const handleExportAll = () => {
@@ -411,6 +421,13 @@ export function ConversationSidebar({
                         <span aria-hidden="true">🔗</span>
                       </button>
                       <button
+                        onClick={() => handleExportLink(conversation)}
+                        className="conversation-action-btn"
+                        aria-label={`Export encrypted link for ${conversation.title}`}
+                      >
+                        <span aria-hidden="true">🔐</span>
+                      </button>
+                      <button
                         onClick={() => handleExport(conversation)}
                         className="conversation-action-btn"
                         aria-label={`Export conversation ${conversation.title}`}
@@ -495,6 +512,20 @@ export function ConversationSidebar({
           }}
           conversationId={shareConversationId}
           conversationTitle={shareConversationTitle}
+        />
+      )}
+
+      {/* Export Link Dialog */}
+      {exportLinkConversationId && (
+        <ExportLinkDialog
+          isOpen={showExportLinkDialog}
+          onClose={() => {
+            setShowExportLinkDialog(false);
+            setExportLinkConversationId(null);
+            setExportLinkConversationTitle('');
+          }}
+          conversationId={exportLinkConversationId}
+          conversationTitle={exportLinkConversationTitle}
         />
       )}
     </>
