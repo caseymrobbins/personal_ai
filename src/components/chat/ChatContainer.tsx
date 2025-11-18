@@ -17,6 +17,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ChatInterface } from './ChatInterface';
 import { AdapterSelector } from '../AdapterSelector';
 import { ConversationSidebar } from '../ConversationSidebar';
+import { KeyboardShortcutsProvider } from '../shortcuts/KeyboardShortcutsProvider';
 import { dbService, type ChatMessage, type Conversation } from '../../services/db.service';
 import { initializeDatabase } from '../../db/init';
 import { adapterRegistry } from '../../modules/adapters';
@@ -572,34 +573,48 @@ export function ChatContainer() {
     );
   }
 
+  // Keyboard shortcut handlers
+  const handleFocusInput = () => {
+    const inputElement = document.querySelector('textarea[placeholder*="message"]') as HTMLTextAreaElement;
+    if (inputElement) {
+      inputElement.focus();
+    }
+  };
+
   // Show chat interface with adapter selector and conversation sidebar
   return (
-    <div style={{ height: '100%', display: 'flex' }}>
-      <ConversationSidebar
-        conversations={conversations}
-        currentConversationId={currentConversation?.id || null}
-        onConversationSelect={switchToConversation}
-        onConversationCreate={createNewConversation}
-        onConversationUpdate={loadConversations}
-        isOpen={sidebarOpen}
-        onToggle={() => setSidebarOpen(!sidebarOpen)}
-      />
+    <KeyboardShortcutsProvider
+      onNewConversation={createNewConversation}
+      onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+      onFocusInput={handleFocusInput}
+    >
+      <div style={{ height: '100%', display: 'flex' }}>
+        <ConversationSidebar
+          conversations={conversations}
+          currentConversationId={currentConversation?.id || null}
+          onConversationSelect={switchToConversation}
+          onConversationCreate={createNewConversation}
+          onConversationUpdate={loadConversations}
+          isOpen={sidebarOpen}
+          onToggle={() => setSidebarOpen(!sidebarOpen)}
+        />
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <AdapterSelector />
-        <div style={{ flex: 1, overflow: 'hidden' }}>
-          <ChatInterface
-            messages={messages}
-            onSendMessage={handleSendMessage}
-            isLoading={isLoading}
-            loadingMessage={
-              selectedAdapterId === 'local_guardian'
-                ? 'Local AI is thinking...'
-                : `${adapterRegistry.get(selectedAdapterId)?.name} is thinking...`
-            }
-          />
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <AdapterSelector />
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            <ChatInterface
+              messages={messages}
+              onSendMessage={handleSendMessage}
+              isLoading={isLoading}
+              loadingMessage={
+                selectedAdapterId === 'local_guardian'
+                  ? 'Local AI is thinking...'
+                  : `${adapterRegistry.get(selectedAdapterId)?.name} is thinking...`
+              }
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </KeyboardShortcutsProvider>
   );
 }
