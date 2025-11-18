@@ -18,6 +18,7 @@ import { attachmentsService } from '../services/attachments.service';
 import { SearchResults } from './SearchResults';
 import { ImportDialog } from './import/ImportDialog';
 import { BackupDialog } from './backup/BackupDialog';
+import { ThemeDialog } from './theme/ThemeDialog';
 import './ConversationSidebar.css';
 
 export interface ConversationSidebarProps {
@@ -47,6 +48,7 @@ export function ConversationSidebar({
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showBackupDialog, setShowBackupDialog] = useState(false);
+  const [showThemeDialog, setShowThemeDialog] = useState(false);
 
   const handleNewConversation = () => {
     onConversationCreate();
@@ -403,6 +405,13 @@ export function ConversationSidebar({
             >
               🔐 Backup
             </button>
+            <button
+              className="theme-btn"
+              onClick={() => setShowThemeDialog(true)}
+              title="Themes & Appearance"
+            >
+              🎨 Theme
+            </button>
           </div>
           <div className="sidebar-stats">
             {conversations.length} {conversations.length === 1 ? 'conversation' : 'conversations'}
@@ -424,6 +433,12 @@ export function ConversationSidebar({
       <BackupDialog
         isOpen={showBackupDialog}
         onClose={() => setShowBackupDialog(false)}
+      />
+
+      {/* Theme Dialog */}
+      <ThemeDialog
+        isOpen={showThemeDialog}
+        onClose={() => setShowThemeDialog(false)}
       />
     </>
   );
