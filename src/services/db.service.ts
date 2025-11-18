@@ -102,6 +102,39 @@ export interface MessageThread {
   messages: MessageWithDetails[];
 }
 
+/**
+ * Conversation template for quick creation
+ */
+export interface ConversationTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  initial_message?: string;
+  created_at: number;
+}
+
+/**
+ * Conversation branch (alternative path in conversation)
+ */
+export interface ConversationBranch {
+  id: string;
+  parent_conversation_id: string;
+  branch_name: string;
+  from_message_id: string;
+  created_at: number;
+}
+
+/**
+ * Conversation relationship for merge/split tracking
+ */
+export interface ConversationRelation {
+  id: string;
+  source_conversation_id: string;
+  target_conversation_id: string;
+  relation_type: 'merge' | 'split' | 'branch';
+  created_at: number;
+}
+
 class DatabaseService {
   private db: Database | null = null;
   private initialized = false;
@@ -283,6 +316,43 @@ class DatabaseService {
         )
       `);
 
+      // Conversation templates table (for templates)
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS conversation_templates (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL UNIQUE,
+          description TEXT,
+          initial_message TEXT,
+          created_at INTEGER NOT NULL
+        )
+      `);
+
+      // Conversation branches table (for branching conversations)
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS conversation_branches (
+          id TEXT PRIMARY KEY,
+          parent_conversation_id TEXT NOT NULL,
+          branch_name TEXT NOT NULL,
+          from_message_id TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          FOREIGN KEY (parent_conversation_id) REFERENCES conversations(id),
+          FOREIGN KEY (from_message_id) REFERENCES chat_messages(id)
+        )
+      `);
+
+      // Conversation relations table (for merge/split tracking)
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS conversation_relations (
+          id TEXT PRIMARY KEY,
+          source_conversation_id TEXT NOT NULL,
+          target_conversation_id TEXT NOT NULL,
+          relation_type TEXT NOT NULL CHECK(relation_type IN ('merge', 'split', 'branch')),
+          created_at INTEGER NOT NULL,
+          FOREIGN KEY (source_conversation_id) REFERENCES conversations(id),
+          FOREIGN KEY (target_conversation_id) REFERENCES conversations(id)
+        )
+      `);
+
       // Create indexes for better query performance
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_tags_conversation ON conversation_tags(conversation_id)`);
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_tags_tag ON conversation_tags(tag_id)`);
@@ -292,6 +362,9 @@ class DatabaseService {
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_message_edit_history_message ON message_edit_history(message_id)`);
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_message_metadata_pinned ON message_metadata(is_pinned)`);
       this.db.run(`CREATE INDEX IF NOT EXISTS idx_message_metadata_thread_parent ON message_metadata(thread_parent_id)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_branches_parent ON conversation_branches(parent_conversation_id)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_relations_source ON conversation_relations(source_conversation_id)`);
+      this.db.run(`CREATE INDEX IF NOT EXISTS idx_conversation_relations_target ON conversation_relations(target_conversation_id)`);
 
       console.log('[DB] ✅ Database schema created successfully');
     } catch (error) {
@@ -1773,6 +1846,447 @@ class DatabaseService {
       pinnedCount,
       editedCount,
       threadedCount
+    };
+  }
+
+  // ==================== CONVERSATION TOOLS ====================
+
+  /**
+   * Create a conversation template
+   * @param name Template name (unique)
+   * @param description Optional template description
+   * @param initialMessage Optional initial message
+   * @returns Created template
+   */
+  createConversationTemplate(
+    name: string,
+    description?: string,
+    initialMessage?: string
+  ): ConversationTemplate {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const id = `tpl-${crypto.randomUUID()}`;
+    const createdAt = Date.now();
+
+    this.db.run(
+      `INSERT INTO conversation_templates (id, name, description, initial_message, created_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [id, name, description || null, initialMessage || null, createdAt]
+    );
+
+    // Auto-save
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Created conversation template: ${id} (${name})`);
+
+    return {
+      id,
+      name,
+      description,
+      initial_message: initialMessage,
+      created_at: createdAt
+    };
+  }
+
+  /**
+   * Get all conversation templates
+   * @returns Array of templates
+   */
+  getAllTemplates(): ConversationTemplate[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    return this.query<ConversationTemplate>(
+      `SELECT id, name, description, initial_message, created_at
+       FROM conversation_templates
+       ORDER BY name ASC`
+    );
+  }
+
+  /**
+   * Get a template by ID
+   * @param templateId Template ID
+   * @returns Template or null if not found
+   */
+  getTemplate(templateId: string): ConversationTemplate | null {
+    if (!this.db) throw new Error('Database not initialized');
+
+    return this.query<ConversationTemplate>(
+      `SELECT id, name, description, initial_message, created_at
+       FROM conversation_templates
+       WHERE id = ?`,
+      [templateId]
+    )[0] || null;
+  }
+
+  /**
+   * Create conversation from template
+   * @param templateId Template to use
+   * @param conversationTitle Title for new conversation
+   * @returns ID of created conversation
+   */
+  createConversationFromTemplate(templateId: string, conversationTitle: string): string {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const template = this.getTemplate(templateId);
+    if (!template) {
+      throw new Error(`Template not found: ${templateId}`);
+    }
+
+    // Create conversation
+    const conversationId = this.createConversation(conversationTitle).id;
+
+    // Add initial message if template has one
+    if (template.initial_message) {
+      this.addMessage({
+        conversation_id: conversationId,
+        role: 'system',
+        content: template.initial_message,
+        module_used: null,
+        trace_data: null
+      });
+    }
+
+    console.log(`[DB] Created conversation from template: ${conversationId}`);
+
+    return conversationId;
+  }
+
+  /**
+   * Delete a conversation template
+   * @param templateId Template ID
+   * @returns true if deleted, false if not found
+   */
+  deleteTemplate(templateId: string): boolean {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const template = this.getTemplate(templateId);
+    if (!template) {
+      return false;
+    }
+
+    this.db.run('DELETE FROM conversation_templates WHERE id = ?', [templateId]);
+
+    // Auto-save
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Deleted template: ${templateId}`);
+
+    return true;
+  }
+
+  /**
+   * Create a conversation branch from an existing conversation at a specific message
+   * @param parentConversationId Parent conversation ID
+   * @param fromMessageId Message to branch from
+   * @param branchName Name for the branch
+   * @returns Created branch
+   */
+  createConversationBranch(
+    parentConversationId: string,
+    fromMessageId: string,
+    branchName: string
+  ): ConversationBranch {
+    if (!this.db) throw new Error('Database not initialized');
+
+    // Verify parent conversation exists
+    const parent = this.getConversation(parentConversationId);
+    if (!parent) {
+      throw new Error(`Parent conversation not found: ${parentConversationId}`);
+    }
+
+    // Verify message exists and is in the conversation
+    const message = this.query<ChatMessage>(
+      'SELECT id FROM chat_messages WHERE id = ? AND conversation_id = ?',
+      [fromMessageId, parentConversationId]
+    )[0];
+
+    if (!message) {
+      throw new Error(`Message not found in conversation: ${fromMessageId}`);
+    }
+
+    const id = `branch-${crypto.randomUUID()}`;
+    const createdAt = Date.now();
+
+    this.db.run(
+      `INSERT INTO conversation_branches (id, parent_conversation_id, branch_name, from_message_id, created_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [id, parentConversationId, branchName, fromMessageId, createdAt]
+    );
+
+    // Record relation
+    const relationId = `rel-${crypto.randomUUID()}`;
+    this.db.run(
+      `INSERT INTO conversation_relations (id, source_conversation_id, target_conversation_id, relation_type, created_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [relationId, parentConversationId, parentConversationId, 'branch', createdAt]
+    );
+
+    // Auto-save
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Created branch: ${id} from message ${fromMessageId}`);
+
+    return {
+      id,
+      parent_conversation_id: parentConversationId,
+      branch_name: branchName,
+      from_message_id: fromMessageId,
+      created_at: createdAt
+    };
+  }
+
+  /**
+   * Get all branches of a conversation
+   * @param conversationId Conversation ID
+   * @returns Array of branches
+   */
+  getConversationBranches(conversationId: string): ConversationBranch[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    return this.query<ConversationBranch>(
+      `SELECT id, parent_conversation_id, branch_name, from_message_id, created_at
+       FROM conversation_branches
+       WHERE parent_conversation_id = ?
+       ORDER BY created_at DESC`,
+      [conversationId]
+    );
+  }
+
+  /**
+   * Get messages after a point in a conversation (for branching)
+   * @param conversationId Conversation ID
+   * @param fromMessageId Message ID to start from (exclusive)
+   * @returns Array of messages after the point
+   */
+  getMessagesAfter(conversationId: string, fromMessageId: string): ChatMessage[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    // Get the timestamp of the fromMessage
+    const fromMessage = this.query<ChatMessage>(
+      'SELECT timestamp FROM chat_messages WHERE id = ? AND conversation_id = ?',
+      [fromMessageId, conversationId]
+    )[0];
+
+    if (!fromMessage) {
+      console.warn(`[DB] Message not found: ${fromMessageId}`);
+      return [];
+    }
+
+    return this.query<ChatMessage>(
+      `SELECT id, conversation_id, role, content, module_used, trace_data, timestamp
+       FROM chat_messages
+       WHERE conversation_id = ? AND timestamp > ?
+       ORDER BY timestamp ASC`,
+      [conversationId, fromMessage.timestamp]
+    );
+  }
+
+  /**
+   * Merge two conversations
+   * @param sourceConversationId Conversation to merge from
+   * @param targetConversationId Conversation to merge into
+   * @returns true if successful
+   */
+  mergeConversations(sourceConversationId: string, targetConversationId: string): boolean {
+    if (!this.db) throw new Error('Database not initialized');
+
+    // Verify both conversations exist
+    const source = this.getConversation(sourceConversationId);
+    const target = this.getConversation(targetConversationId);
+
+    if (!source || !target) {
+      console.warn('[DB] One or both conversations not found for merge');
+      return false;
+    }
+
+    if (sourceConversationId === targetConversationId) {
+      console.warn('[DB] Cannot merge conversation with itself');
+      return false;
+    }
+
+    // Get all messages from source
+    const sourceMessages = this.getConversationHistory(sourceConversationId);
+
+    // Copy all messages to target
+    for (const msg of sourceMessages) {
+      this.addMessage({
+        conversation_id: targetConversationId,
+        role: msg.role,
+        content: msg.content,
+        module_used: msg.module_used,
+        trace_data: msg.trace_data
+      });
+    }
+
+    // Record the merge relation
+    const relationId = `rel-${crypto.randomUUID()}`;
+    this.db.run(
+      `INSERT INTO conversation_relations (id, source_conversation_id, target_conversation_id, relation_type, created_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [relationId, sourceConversationId, targetConversationId, 'merge', Date.now()]
+    );
+
+    // Auto-save
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Merged conversation ${sourceConversationId} into ${targetConversationId}`);
+
+    return true;
+  }
+
+  /**
+   * Split a conversation at a specific message
+   * @param conversationId Conversation to split
+   * @param atMessageId Message to split at
+   * @param newTitle Title for the new conversation
+   * @returns ID of new conversation
+   */
+  splitConversation(conversationId: string, atMessageId: string, newTitle: string): string {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const conversation = this.getConversation(conversationId);
+    if (!conversation) {
+      throw new Error(`Conversation not found: ${conversationId}`);
+    }
+
+    // Verify message exists
+    const message = this.query<ChatMessage>(
+      'SELECT timestamp FROM chat_messages WHERE id = ? AND conversation_id = ?',
+      [atMessageId, conversationId]
+    )[0];
+
+    if (!message) {
+      throw new Error(`Message not found: ${atMessageId}`);
+    }
+
+    // Create new conversation
+    const newConversation = this.createConversation(newTitle);
+
+    // Get messages after the split point
+    const messagesAfter = this.getMessagesAfter(conversationId, atMessageId);
+
+    // Move messages to new conversation
+    for (const msg of messagesAfter) {
+      this.addMessage({
+        conversation_id: newConversation.id,
+        role: msg.role,
+        content: msg.content,
+        module_used: msg.module_used,
+        trace_data: msg.trace_data
+      });
+
+      // Delete from original conversation
+      this.deleteMessage(msg.id);
+    }
+
+    // Record the split relation
+    const relationId = `rel-${crypto.randomUUID()}`;
+    this.db.run(
+      `INSERT INTO conversation_relations (id, source_conversation_id, target_conversation_id, relation_type, created_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [relationId, conversationId, newConversation.id, 'split', Date.now()]
+    );
+
+    // Auto-save
+    this.save().catch(err => console.error('[DB] Auto-save failed:', err));
+
+    console.log(`[DB] Split conversation ${conversationId} at message ${atMessageId}`);
+
+    return newConversation.id;
+  }
+
+  /**
+   * Get conversation relations
+   * @param conversationId Conversation ID
+   * @param relationType Optional filter by relation type
+   * @returns Array of relations
+   */
+  getConversationRelations(
+    conversationId: string,
+    relationType?: 'merge' | 'split' | 'branch'
+  ): ConversationRelation[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    let sql = `SELECT id, source_conversation_id, target_conversation_id, relation_type, created_at
+               FROM conversation_relations
+               WHERE source_conversation_id = ? OR target_conversation_id = ?`;
+    const params: any[] = [conversationId, conversationId];
+
+    if (relationType) {
+      sql += ' AND relation_type = ?';
+      params.push(relationType);
+    }
+
+    sql += ' ORDER BY created_at DESC';
+
+    return this.query<ConversationRelation>(sql, params);
+  }
+
+  /**
+   * Get conversation history for a branched conversation
+   * @param parentConversationId Parent conversation ID
+   * @param fromMessageId Message to branch from
+   * @returns Messages up to and including the branch point, plus messages from branches
+   */
+  getBranchConversationHistory(
+    parentConversationId: string,
+    fromMessageId: string
+  ): ChatMessage[] {
+    if (!this.db) throw new Error('Database not initialized');
+
+    // Get message
+    const message = this.query<ChatMessage>(
+      'SELECT timestamp FROM chat_messages WHERE id = ? AND conversation_id = ?',
+      [fromMessageId, parentConversationId]
+    )[0];
+
+    if (!message) {
+      console.warn(`[DB] Message not found: ${fromMessageId}`);
+      return [];
+    }
+
+    // Get all messages up to and including the branch point
+    return this.query<ChatMessage>(
+      `SELECT id, conversation_id, role, content, module_used, trace_data, timestamp
+       FROM chat_messages
+       WHERE conversation_id = ? AND timestamp <= ?
+       ORDER BY timestamp ASC`,
+      [parentConversationId, message.timestamp]
+    );
+  }
+
+  /**
+   * Get conversation tools statistics
+   * @param conversationId Conversation ID
+   * @returns Statistics about conversation tools
+   */
+  getConversationToolsStats(conversationId: string): {
+    branchCount: number;
+    relationCount: number;
+    hasParent: boolean;
+  } {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const branchCount = this.query<{ count: number }>(
+      'SELECT COUNT(*) as count FROM conversation_branches WHERE parent_conversation_id = ?',
+      [conversationId]
+    )[0]?.count || 0;
+
+    const relationCount = this.query<{ count: number }>(
+      `SELECT COUNT(*) as count FROM conversation_relations
+       WHERE source_conversation_id = ? OR target_conversation_id = ?`,
+      [conversationId, conversationId]
+    )[0]?.count || 0;
+
+    const parentBranch = this.query<{ id: string }>(
+      'SELECT id FROM conversation_branches WHERE parent_conversation_id = ?',
+      [conversationId]
+    )[0];
+
+    return {
+      branchCount,
+      relationCount,
+      hasParent: !!parentBranch
     };
   }
 
