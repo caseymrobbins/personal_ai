@@ -1,0 +1,546 @@
+/* Knowledge Graph Visualizer Styles */
+
+.knowledge-graph-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.knowledge-graph-panel {
+  display: flex;
+  flex-direction: column;
+  width: 90vw;
+  height: 90vh;
+  max-width: 1600px;
+  max-height: 900px;
+  background: #16213e;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+/* Header */
+.kg-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.kg-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.kg-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  transition: color 0.2s ease;
+}
+
+.kg-close:hover {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+/* Controls */
+.kg-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  background: rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  flex-wrap: wrap;
+}
+
+.kg-search {
+  flex: 1;
+  min-width: 150px;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.kg-search::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.kg-search:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.kg-filters {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.kg-filter-btn {
+  padding: 0.4rem 0.8rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.kg-filter-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.kg-filter-btn.active {
+  background: rgba(102, 126, 234, 0.2);
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.kg-simulate-btn {
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.kg-simulate-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: #667eea;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.kg-simulate-btn.active {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: #22c55e;
+  color: #22c55e;
+}
+
+/* Content Area */
+.kg-content {
+  flex: 1;
+  display: flex;
+  gap: 0;
+  overflow: hidden;
+}
+
+.kg-canvas {
+  flex: 1;
+  display: block;
+  cursor: grab;
+  background: #16213e;
+}
+
+.kg-canvas:active {
+  cursor: grabbing;
+}
+
+/* Info Panel */
+.kg-info {
+  width: 280px;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.kg-section {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.kg-section h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.kg-section h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Statistics */
+.kg-stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 0.85rem;
+}
+
+.kg-stat-item:last-child {
+  border-bottom: none;
+}
+
+.kg-stat-label {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.kg-stat-value {
+  font-weight: 600;
+  color: #667eea;
+}
+
+/* Concept List */
+.kg-concept-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.kg-concept-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.kg-concept-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.kg-concept-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: white;
+  flex-shrink: 0;
+}
+
+.kg-concept-badge.kg-type-entity {
+  background: #667eea;
+}
+
+.kg-concept-badge.kg-type-topic {
+  background: #764ba2;
+}
+
+.kg-concept-badge.kg-type-technique {
+  background: #f093fb;
+}
+
+.kg-concept-badge.kg-type-question {
+  background: #f5576c;
+}
+
+.kg-concept-badge.kg-type-problem {
+  background: #e74c3c;
+}
+
+.kg-concept-text {
+  flex: 1;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.85);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kg-concept-freq {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.5);
+  flex-shrink: 0;
+}
+
+/* Selected Concept */
+.kg-selected {
+  background: rgba(102, 126, 234, 0.1);
+  border-color: rgba(102, 126, 234, 0.3);
+}
+
+.kg-selected-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.kg-selected-label {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 0.9rem;
+  word-break: break-word;
+}
+
+.kg-selected-type {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background: rgba(102, 126, 234, 0.2);
+  border: 1px solid rgba(102, 126, 234, 0.4);
+  border-radius: 3px;
+  color: #667eea;
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  width: fit-content;
+}
+
+.kg-selected-stats {
+  font-size: 0.8rem;
+}
+
+.kg-concept-description {
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.4;
+}
+
+/* Help Section */
+.kg-help ul {
+  margin: 0;
+  padding-left: 1rem;
+  list-style: none;
+}
+
+.kg-help li {
+  padding: 0.25rem 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.8rem;
+}
+
+.kg-help li::before {
+  content: '•';
+  margin-right: 0.5rem;
+  color: #667eea;
+}
+
+/* Light Mode */
+@media (prefers-color-scheme: light) {
+  .knowledge-graph-panel {
+    background: #ffffff;
+  }
+
+  .kg-header {
+    border-bottom-color: rgba(0, 0, 0, 0.1);
+    background: rgba(0, 0, 0, 0.02);
+  }
+
+  .kg-header h2 {
+    color: rgba(0, 0, 0, 0.95);
+  }
+
+  .kg-close {
+    color: rgba(0, 0, 0, 0.6);
+  }
+
+  .kg-close:hover {
+    color: rgba(0, 0, 0, 0.95);
+  }
+
+  .kg-controls {
+    background: rgba(0, 0, 0, 0.02);
+    border-bottom-color: rgba(0, 0, 0, 0.05);
+  }
+
+  .kg-search {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.1);
+    color: rgba(0, 0, 0, 0.9);
+  }
+
+  .kg-search::placeholder {
+    color: rgba(0, 0, 0, 0.4);
+  }
+
+  .kg-search:focus {
+    border-color: #5a67d8;
+    box-shadow: 0 0 0 3px rgba(90, 103, 216, 0.2);
+    background: rgba(0, 0, 0, 0.08);
+  }
+
+  .kg-filter-btn {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.1);
+    color: rgba(0, 0, 0, 0.6);
+  }
+
+  .kg-filter-btn:hover {
+    background: rgba(0, 0, 0, 0.1);
+    border-color: rgba(0, 0, 0, 0.15);
+    color: rgba(0, 0, 0, 0.8);
+  }
+
+  .kg-filter-btn.active {
+    background: rgba(90, 103, 216, 0.1);
+    border-color: #5a67d8;
+    color: #5a67d8;
+  }
+
+  .kg-simulate-btn {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.1);
+    color: rgba(0, 0, 0, 0.8);
+  }
+
+  .kg-simulate-btn:hover {
+    background: rgba(0, 0, 0, 0.1);
+    border-color: #5a67d8;
+    color: rgba(0, 0, 0, 0.95);
+  }
+
+  .kg-simulate-btn.active {
+    background: rgba(34, 197, 94, 0.1);
+    border-color: #22c55e;
+    color: #22c55e;
+  }
+
+  .kg-canvas {
+    background: #ffffff;
+  }
+
+  .kg-info {
+    background: rgba(0, 0, 0, 0.02);
+    border-left-color: rgba(0, 0, 0, 0.1);
+  }
+
+  .kg-section {
+    background: rgba(0, 0, 0, 0.03);
+    border-color: rgba(0, 0, 0, 0.1);
+  }
+
+  .kg-section h3,
+  .kg-section h4 {
+    color: rgba(0, 0, 0, 0.95);
+  }
+
+  .kg-stat-item {
+    border-bottom-color: rgba(0, 0, 0, 0.05);
+  }
+
+  .kg-stat-label {
+    color: rgba(0, 0, 0, 0.6);
+  }
+
+  .kg-stat-value {
+    color: #5a67d8;
+  }
+
+  .kg-concept-item {
+    background: rgba(0, 0, 0, 0.02);
+    border-color: rgba(0, 0, 0, 0.08);
+  }
+
+  .kg-concept-item:hover {
+    background: rgba(0, 0, 0, 0.08);
+    border-color: rgba(0, 0, 0, 0.15);
+  }
+
+  .kg-concept-text {
+    color: rgba(0, 0, 0, 0.85);
+  }
+
+  .kg-concept-freq {
+    color: rgba(0, 0, 0, 0.5);
+  }
+
+  .kg-selected {
+    background: rgba(90, 103, 216, 0.1);
+    border-color: rgba(90, 103, 216, 0.3);
+  }
+
+  .kg-selected-label {
+    color: rgba(0, 0, 0, 0.95);
+  }
+
+  .kg-selected-type {
+    background: rgba(90, 103, 216, 0.1);
+    border-color: rgba(90, 103, 216, 0.3);
+    color: #5a67d8;
+  }
+
+  .kg-concept-description {
+    background: rgba(0, 0, 0, 0.05);
+    color: rgba(0, 0, 0, 0.7);
+  }
+
+  .kg-help li {
+    color: rgba(0, 0, 0, 0.7);
+  }
+
+  .kg-help li::before {
+    color: #5a67d8;
+  }
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .kg-info {
+    width: 240px;
+  }
+}
+
+@media (max-width: 900px) {
+  .kg-info {
+    display: none;
+  }
+
+  .kg-controls {
+    flex-wrap: wrap;
+  }
+
+  .kg-search {
+    order: 1;
+    width: 100%;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .kg-search,
+  .kg-filter-btn,
+  .kg-simulate-btn,
+  .kg-concept-item {
+    transition: none;
+  }
+}
