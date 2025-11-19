@@ -17,6 +17,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ChatInterface } from './ChatInterface';
 import { AdapterSelector } from '../AdapterSelector';
 import { ConversationSidebar } from '../ConversationSidebar';
+import { CognitiveStatusDashboard } from '../CognitiveStatusDashboard';
 import { KeyboardShortcutsProvider } from '../shortcuts/KeyboardShortcutsProvider';
 import { dbService, type ChatMessage, type Conversation } from '../../services/db.service';
 import { initializeDatabase } from '../../db/init';
@@ -33,6 +34,10 @@ import { themeService } from '../../services/theme.service';
 import { accessibilityService } from '../../services/accessibility.service';
 import { useChatState } from '../../store/chat.store';
 import type { IChatCompletionRequest } from '../../modules/adapters';
+// Phase 2: Cognitive Services Integration
+import { interactionMemoryBridgeService } from '../../services/interaction-memory-bridge.service';
+import { conversationEntityIntegrationService } from '../../services/conversation-entity-integration.service';
+import { goalEvaluationTriggerService } from '../../services/goal-evaluation-trigger.service';
 
 export function ChatContainer() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -40,6 +45,7 @@ export function ChatContainer() {
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showCognitivePanel, setShowCognitivePanel] = useState(false);
   const [modelStatus, setModelStatus] = useState<{
     ready: boolean;
     loading?: boolean;
@@ -123,6 +129,28 @@ export function ChatContainer() {
         const history = dbService.getConversationHistory(conversation.id);
         setMessages(history);
         console.log(`[ChatContainer] Loaded ${history.length} messages`);
+
+        // Phase 2: Initialize cognitive services
+        try {
+          await interactionMemoryBridgeService.initialize();
+          console.log('[ChatContainer] ✅ Interaction Memory Bridge initialized');
+        } catch (error) {
+          console.warn('[ChatContainer] Failed to initialize Interaction Memory Bridge:', error);
+        }
+
+        try {
+          await conversationEntityIntegrationService.initialize();
+          console.log('[ChatContainer] ✅ Conversation Entity Integration initialized');
+        } catch (error) {
+          console.warn('[ChatContainer] Failed to initialize Conversation Entity Integration:', error);
+        }
+
+        try {
+          await goalEvaluationTriggerService.initialize();
+          console.log('[ChatContainer] ✅ Goal Evaluation Trigger initialized');
+        } catch (error) {
+          console.warn('[ChatContainer] Failed to initialize Goal Evaluation Trigger:', error);
+        }
       } catch (error) {
         console.error('[ChatContainer] Initialization failed:', error);
       }
@@ -130,6 +158,36 @@ export function ChatContainer() {
 
     init();
   }, [loadConversations]);
+
+  // Phase 2: Periodic goal evaluation cycle
+  useEffect(() => {
+    if (!currentConversation) return;
+
+    const evaluateGoals = async () => {
+      try {
+        const result = await goalEvaluationTriggerService.evaluateCycle();
+
+        console.log('[ChatContainer] Goal evaluation cycle complete:', {
+          cycleId: result.cycleId,
+          goalsEvaluated: result.goalsEvaluated,
+          progressUpdates: result.progressUpdates,
+          completedGoals: result.goalsCompleted,
+          stalledGoals: result.stalledGoalsDetected,
+          autonomousTasksGenerated: result.autonomousTasksGenerated,
+        });
+      } catch (error) {
+        console.warn('[ChatContainer] Goal evaluation cycle failed:', error);
+      }
+    };
+
+    // Run goal evaluation immediately on conversation switch
+    evaluateGoals();
+
+    // Then run periodically every 5 minutes (300000ms)
+    const evaluationInterval = setInterval(evaluateGoals, 5 * 60 * 1000);
+
+    return () => clearInterval(evaluationInterval);
+  }, [currentConversation]);
 
   // Initialize the selected adapter when it changes
   useEffect(() => {
@@ -253,6 +311,47 @@ export function ChatContainer() {
 
         setMessages(prev => [...prev, userMessage]);
 
+        // Phase 2: Record user message to memory bridge (async, non-blocking)
+        try {
+          await interactionMemoryBridgeService.recordMessage(
+            currentConversation.id,
+            'user',
+            content,
+            {
+              messageId: userMessageId,
+              timestamp: Date.now(),
+              hasAttachments: !!(imageFiles?.length || documentFiles?.length),
+              attachmentCount: (imageFiles?.length || 0) + (documentFiles?.length || 0),
+            }
+          );
+        } catch (error) {
+          console.warn('[ChatContainer] Failed to record user message to memory bridge:', error);
+          // Don't fail the conversation
+        }
+
+        // Phase 2: Process user message for entity extraction and learning
+        try {
+          const extractionResult = await conversationEntityIntegrationService.processUserMessage(
+            userMessageId,
+            content,
+            currentConversation.id,
+            {
+              timestamp: Date.now(),
+              messageIndex: messages.length,
+            }
+          );
+
+          console.log('[ChatContainer] User message learning:', {
+            entitiesFound: extractionResult.entitiesFound,
+            newEntities: extractionResult.newEntities,
+            insightsDiscovered: extractionResult.userInsightsDiscovered,
+            preferencesLearned: extractionResult.preferencesLearned,
+            goalsLinked: extractionResult.entitiesLinkedToGoals,
+          });
+        } catch (error) {
+          console.warn('[ChatContainer] Failed to process user message for learning:', error);
+          // Don't fail the conversation
+        }
         // Announce message sent to screen readers
         accessibilityService.announce('Message sent', 'polite');
 
@@ -462,6 +561,40 @@ export function ChatContainer() {
         setMessages(prev => [...prev, assistantMessage]);
         console.log('[ChatContainer] ✅ Response received and saved');
 
+        // Phase 2: Record agent message to memory bridge
+        try {
+          await interactionMemoryBridgeService.recordMessage(
+            currentConversation.id,
+            'assistant',
+            assistantContent,
+            {
+              messageId: assistantMessageId,
+              timestamp: Date.now(),
+              moduleUsed: selectedAdapterId,
+              hasAttachments: false,
+            }
+          );
+        } catch (error) {
+          console.warn('[ChatContainer] Failed to record agent message to memory bridge:', error);
+        }
+
+        // Phase 2: Process agent response for entity extraction and learning
+        try {
+          const extractionResult = await conversationEntityIntegrationService.processAgentResponse(
+            assistantMessageId,
+            assistantContent,
+            currentConversation.id,
+            selectedAdapterId
+          );
+
+          console.log('[ChatContainer] Agent response learning:', {
+            entitiesFound: extractionResult.entitiesFound,
+            newEntities: extractionResult.newEntities,
+            goalsLinked: extractionResult.entitiesLinkedToGoals,
+          });
+        } catch (error) {
+          console.warn('[ChatContainer] Failed to process agent response for learning:', error);
+        }
         // Announce response received to screen readers
         accessibilityService.announce('Response received from AI', 'polite');
       } catch (error) {
@@ -605,6 +738,66 @@ export function ChatContainer() {
 
   // Show chat interface with adapter selector and conversation sidebar
   return (
+    <div style={{ height: '100%', display: 'flex' }}>
+      <ConversationSidebar
+        conversations={conversations}
+        currentConversationId={currentConversation?.id || null}
+        onConversationSelect={switchToConversation}
+        onConversationCreate={createNewConversation}
+        onConversationUpdate={loadConversations}
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+      />
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* Header with adapter selector and dashboard toggle */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '0.5rem',
+          borderBottom: '1px solid rgba(229, 231, 235, 0.3)',
+          backgroundColor: 'rgba(249, 250, 251, 0.5)',
+        }}>
+          <div style={{ flex: 1 }}>
+            <AdapterSelector />
+          </div>
+          {/* Phase 3: Cognitive Status Dashboard Toggle */}
+          <button
+            onClick={() => setShowCognitivePanel(!showCognitivePanel)}
+            style={{
+              padding: '0.5rem 1rem',
+              margin: '0 0.5rem',
+              background: showCognitivePanel
+                ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                : 'rgba(102, 126, 234, 0.1)',
+              color: showCognitivePanel ? 'white' : '#667eea',
+              border: showCognitivePanel ? 'none' : '1px solid rgba(102, 126, 234, 0.3)',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={(e) => {
+              if (!showCognitivePanel) {
+                e.currentTarget.style.background = 'rgba(102, 126, 234, 0.15)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!showCognitivePanel) {
+                e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
+              }
+            }}
+          >
+            🧠 {showCognitivePanel ? 'Hide' : 'Show'} Dashboard
+          </button>
+        </div>
+
+        {/* Main chat area with optional dashboard panel */}
+        <div style={{ flex: 1, display: 'flex', overflow: 'hidden', gap: '0.5px' }}>
+          <div style={{ flex: showCognitivePanel ? 2 : 1, overflow: 'hidden', minWidth: '0' }}>
     <KeyboardShortcutsProvider
       onNewConversation={createNewConversation}
       onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
@@ -650,6 +843,19 @@ export function ChatContainer() {
               }
             />
           </div>
+
+          {/* Phase 3: Cognitive Status Dashboard Panel */}
+          {showCognitivePanel && (
+            <div style={{
+              flex: 1,
+              overflow: 'auto',
+              borderLeft: '1px solid rgba(229, 231, 235, 0.5)',
+              backgroundColor: 'rgba(249, 250, 251, 0.8)',
+              minWidth: '0',
+            }}>
+              <CognitiveStatusDashboard />
+            </div>
+          )}
         </div>
       </div>
     </KeyboardShortcutsProvider>
