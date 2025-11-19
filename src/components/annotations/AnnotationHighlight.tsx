@@ -9,7 +9,7 @@
  */
 
 import { useState } from 'react';
-import { annotationService, type Annotation } from '../../services/annotation.service';
+import { type Annotation } from '../../services/annotation.service';
 import './AnnotationHighlight.css';
 
 export interface AnnotationHighlightProps {
@@ -27,7 +27,7 @@ export function AnnotationHighlight({
   onAnnotationClick,
   onSelectionAnnotate,
 }: AnnotationHighlightProps) {
-  const [selectedRange, setSelectedRange] = useState<{ start: number; end: number } | null>(null);
+  const [_selectedRange, setSelectedRange] = useState<{ start: number; end: number } | null>(null);
 
   // Handle text selection for creating new annotations
   const handleSelection = () => {

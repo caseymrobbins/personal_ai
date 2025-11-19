@@ -6,7 +6,7 @@
  * Component: React Dashboard with interactive charts and detailed analytics
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 interface EmotionalState {
   primaryEmotion: string;
@@ -55,12 +55,10 @@ interface BalancerModeDashboardProps {
  * Main Balancer Mode Dashboard Component
  */
 export const BalancerModeDashboard: React.FC<BalancerModeDashboardProps> = ({
-  userId = 'current-user',
-  realTimeMode = true,
   compactView = false,
 }) => {
   // Mock data for demonstration
-  const [emotionalState, setEmotionalState] = useState<EmotionalState>({
+  const [emotionalState] = useState<EmotionalState>({
     primaryEmotion: 'sadness',
     secondaryEmotions: [
       { emotion: 'hopelessness', intensity: 0.65 },
@@ -75,7 +73,7 @@ export const BalancerModeDashboard: React.FC<BalancerModeDashboardProps> = ({
     riskFactors: ['negative self-talk', 'isolation', 'sleep disruption'],
   });
 
-  const [moodState, setMoodState] = useState<MoodState>({
+  const [moodState] = useState<MoodState>({
     currentMode: 'balancer',
     previousMode: 'mirror',
     emotionalState: emotionalState,
@@ -84,7 +82,7 @@ export const BalancerModeDashboard: React.FC<BalancerModeDashboardProps> = ({
     switchConfidence: 0.87,
   });
 
-  const [responseMetrics, setResponseMetrics] = useState<ResponseMetrics>({
+  const [responseMetrics] = useState<ResponseMetrics>({
     strategySelected: 'grounding-support',
     effectivenessScore: 0.81,
     userReceptivity: 0.78,
@@ -93,7 +91,7 @@ export const BalancerModeDashboard: React.FC<BalancerModeDashboardProps> = ({
     engagementLevel: 0.73,
   });
 
-  const [selectedTechnique, setSelectedTechnique] = useState<GroundingTechnique>(
+  const [selectedTechnique] = useState<GroundingTechnique>(
     {
       name: '5-4-3-2-1 Sensory Grounding',
       effectiveness: 0.85,
@@ -102,14 +100,14 @@ export const BalancerModeDashboard: React.FC<BalancerModeDashboardProps> = ({
     }
   );
 
-  const [responseStyles, setResponseStyles] = useState({
+  const [responseStyles] = useState({
     grounding: { active: true, confidence: 0.85 },
     encouraging: { active: true, confidence: 0.78 },
     stoic: { active: false, confidence: 0.0 },
     directive: { active: false, confidence: 0.0 },
   });
 
-  const [sessionHistory, setSessionHistory] = useState([
+  const [sessionHistory] = useState([
     {
       timestamp: new Date(Date.now() - 600000),
       emotion: 'anxiety',
@@ -133,7 +131,7 @@ export const BalancerModeDashboard: React.FC<BalancerModeDashboardProps> = ({
     },
   ]);
 
-  const [stabilityTrend, setStabilityTrend] = useState([
+  const [stabilityTrend] = useState([
     0.35, 0.38, 0.4, 0.42, 0.41, 0.43, 0.42,
   ]);
 

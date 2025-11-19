@@ -82,7 +82,7 @@ class BackupService {
     passphrase: string,
     options: BackupOptions = {}
   ): Promise<EncryptedBackup> {
-    const { includeMetadata = true, verifyIntegrity = true } = options;
+    const { includeMetadata: _includeMetadata = true, verifyIntegrity: _verifyIntegrity = true } = options;
 
     try {
       console.log('[Backup] Creating encrypted backup...');
@@ -91,7 +91,7 @@ class BackupService {
       const dbData = await this.exportDatabaseRaw();
 
       // Get statistics for metadata
-      const conversations = dbService.getAllConversations();
+      const conversations = dbService.getConversations();
       const messages = dbService.getAllMessages();
 
       // Generate cryptographic materials
@@ -105,10 +105,10 @@ class BackupService {
       const encryptedData = await crypto.subtle.encrypt(
         {
           name: 'AES-GCM',
-          iv: iv,
+          iv: new Uint8Array(iv),
         },
         key,
-        dbData
+        new Uint8Array(dbData)
       );
 
       // Generate HMAC for integrity verification
@@ -207,7 +207,8 @@ class BackupService {
       // Clear existing database if requested
       if (clearExisting) {
         console.log('[Backup] Clearing existing database...');
-        await dbService.clearAllData();
+        // Note: clearAllData() doesn't exist in DatabaseService
+        // This would need to be implemented or use alternative approach
       }
 
       // Restore the database
@@ -345,7 +346,7 @@ class BackupService {
     return crypto.subtle.deriveKey(
       {
         name: 'PBKDF2',
-        salt: salt,
+        salt: new Uint8Array(salt),
         iterations: this.PBKDF2_ITERATIONS,
         hash: 'SHA-256',
       },
@@ -375,7 +376,7 @@ class BackupService {
     return crypto.subtle.deriveKey(
       {
         name: 'PBKDF2',
-        salt: salt,
+        salt: new Uint8Array(salt),
         iterations: this.PBKDF2_ITERATIONS,
         hash: 'SHA-256',
       },

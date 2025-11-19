@@ -5,7 +5,7 @@
  * Displays cycle history, evolution tracking, simulations, and metrics
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 interface DreamCycleDashboardProps {
   userId?: string;
@@ -23,15 +23,14 @@ interface CycleMetric {
  * Main Dream Cycle Monitoring Dashboard Component
  */
 export const DreamCycleDashboard: React.FC<DreamCycleDashboardProps> = ({
-  userId,
   onCycleSelect,
 }) => {
   const [activeTab, setActiveTab] = useState<
     'overview' | 'timeline' | 'evolution' | 'simulations' | 'storage' | 'analysis'
   >('overview');
-  const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null);
-  const [timeRange, setTimeRange] = useState<'week' | 'month' | 'quarter' | 'year'>('month');
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const [_selectedCycleId, _setSelectedCycleId] = useState<string | null>(null);
+  const [_timeRange, _setTimeRange] = useState<'week' | 'month' | 'quarter' | 'year'>('month');
+  const [_expandedSections, _setExpandedSections] = useState<Set<string>>(new Set());
 
   // Mock data for demonstration
   const mockMetrics: CycleMetric[] = [
@@ -85,15 +84,6 @@ export const DreamCycleDashboard: React.FC<DreamCycleDashboardProps> = ({
     { name: 'Metacognition', value: 0.73, change: 0.08 },
   ];
 
-  const toggleSection = (section: string) => {
-    const newExpanded = new Set(expandedSections);
-    if (newExpanded.has(section)) {
-      newExpanded.delete(section);
-    } else {
-      newExpanded.add(section);
-    }
-    setExpandedSections(newExpanded);
-  };
 
   return (
     <div style={styles.container}>
@@ -246,7 +236,7 @@ const TimelineTab: React.FC<{
       <h2 style={styles.sectionTitle}>⏱️ Dream Cycle Timeline</h2>
 
       <div style={styles.timelineContainer}>
-        {cycles.map((cycle, index) => (
+        {cycles.map((cycle) => (
           <div key={cycle.id} style={styles.timelineItem}>
             <div style={styles.timelineMarker}>
               <div

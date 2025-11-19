@@ -119,14 +119,15 @@ class WorkingMemoryService {
     // Store in database
     dbService.exec(
       `INSERT INTO working_memory_tasks (id, description, start_time, status)
-       VALUES (?, ?, ?, ?)`,
-      [taskId, description, task.startTime, task.status]
+       VALUES ('${taskId}', '${description}', ${task.startTime}, '${task.status}')`
     );
 
     if (this.tasks.size > this.maxTasksInMemory) {
       // Remove oldest task
       const oldestId = Array.from(this.tasks.keys())[0];
-      this.tasks.delete(oldestId);
+      if (oldestId) {
+        this.tasks.delete(oldestId);
+      }
     }
 
     console.log(`[WorkingMemory] 📝 Task created: ${taskId}`);
@@ -165,8 +166,7 @@ class WorkingMemoryService {
     dbService.exec(
       `INSERT INTO working_memory_items
        (id, task_id, type, content, timestamp, status, confidence)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [item.id, taskId, type, content, item.timestamp, item.status, confidence || null]
+       VALUES ('${item.id}', '${taskId}', '${type}', '${content}', ${item.timestamp}, '${item.status}', ${confidence || 'NULL'})`
     );
 
     console.log(
@@ -186,8 +186,7 @@ class WorkingMemoryService {
       // Update database
       const conclusions = JSON.stringify(task.conclusions);
       dbService.exec(
-        `UPDATE working_memory_tasks SET conclusions = ? WHERE id = ?`,
-        [conclusions, taskId]
+        `UPDATE working_memory_tasks SET conclusions = '${conclusions}' WHERE id = '${taskId}'`
       );
 
       console.log(`[WorkingMemory] ✅ Conclusion added: ${conclusion}`);
@@ -217,8 +216,7 @@ class WorkingMemoryService {
       task.status = 'completed';
 
       dbService.exec(
-        `UPDATE working_memory_tasks SET status = ? WHERE id = ?`,
-        ['completed', taskId]
+        `UPDATE working_memory_tasks SET status = 'completed' WHERE id = '${taskId}'`
       );
 
       // Mark items for consolidation
@@ -286,13 +284,11 @@ class WorkingMemoryService {
 
       // Remove from database
       dbService.exec(
-        `DELETE FROM working_memory_items WHERE task_id = ?`,
-        [taskId]
+        `DELETE FROM working_memory_items WHERE task_id = '${taskId}'`
       );
 
       dbService.exec(
-        `DELETE FROM working_memory_tasks WHERE id = ?`,
-        [taskId]
+        `DELETE FROM working_memory_tasks WHERE id = '${taskId}'`
       );
 
       console.log(`[WorkingMemory] 🗑️ Task cleared: ${taskId}`);

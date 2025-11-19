@@ -318,7 +318,7 @@ class ProfileEvolutionTrackingService {
    */
   private extractKeyInsights(
     dimensions: ProfileSnapshot['dimensions'],
-    previousSnapshot: ProfileSnapshot | null
+    _previousSnapshot: ProfileSnapshot | null
   ): string[] {
     const insights: string[] = [];
 
@@ -387,13 +387,13 @@ class ProfileEvolutionTrackingService {
 
     // Find dimensions reaching specific milestones
     Object.values(dimensions).forEach((dim) => {
-      const previousValue = previousSnapshot ?
+      const _previousValue = previousSnapshot ?
         Object.values(previousSnapshot.dimensions).find((d) => d.name === dim.name)?.currentValue : 0;
 
-      if (previousValue && previousValue < 0.7 && dim.currentValue >= 0.7) {
+      if (_previousValue && _previousValue < 0.7 && dim.currentValue >= 0.7) {
         breakthroughs.push(`Reached 70% proficiency in ${dim.name}`);
       }
-      if (previousValue && previousValue < 0.9 && dim.currentValue >= 0.9) {
+      if (_previousValue && _previousValue < 0.9 && dim.currentValue >= 0.9) {
         breakthroughs.push(`Achieved mastery (90%+) in ${dim.name}`);
       }
     });

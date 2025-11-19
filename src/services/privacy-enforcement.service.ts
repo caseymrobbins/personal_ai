@@ -346,8 +346,8 @@ class PrivacyEnforcementService {
    */
   storeProtectedData<T>(
     category: DataCategory,
-    data: T,
-    userId: string,
+    _data: T,
+    _userId: string,
     purposes: string[],
     consentGiven: boolean = false
   ): ProtectedData<T> {
@@ -487,7 +487,7 @@ class PrivacyEnforcementService {
     const exportId = this.generateExportId();
     let dataItems = 0;
 
-    for (const [_, data] of this.protectedDataStore.entries()) {
+    for (const [_dataId, data] of this.protectedDataStore.entries()) {
       if (!categories || categories.includes(data.classification.category)) {
         dataItems++;
       }
@@ -519,7 +519,7 @@ class PrivacyEnforcementService {
     const deletionId = this.generateDeletionId();
     let deletedItems = 0;
 
-    for (const [dataId, data] of this.protectedDataStore.entries()) {
+    for (const [_dataId, data] of this.protectedDataStore.entries()) {
       if (
         (!categories || categories.includes(data.classification.category)) &&
         data.classification.category !== 'audit-log'

@@ -87,9 +87,9 @@ class RiskAssessmentService {
   };
 
   private readonly HISTORY_WINDOW = 20;            // Track last 20 executions
-  private readonly FAILURE_THRESHOLD_CRITICAL = 0.5; // >50% = critical
-  private readonly FAILURE_THRESHOLD_HIGH = 0.3;     // >30% = high
-  private readonly FAILURE_THRESHOLD_MEDIUM = 0.1;   // >10% = medium
+  private readonly _FAILURE_THRESHOLD_CRITICAL = 0.5; // >50% = critical
+  private readonly _FAILURE_THRESHOLD_HIGH = 0.3;     // >30% = high
+  private readonly _FAILURE_THRESHOLD_MEDIUM = 0.1;   // >10% = medium
 
   private readonly RISK_WEIGHTS = {
     executionRisk: 0.4,
@@ -199,7 +199,7 @@ class RiskAssessmentService {
   /**
    * Calculate data corruption risk
    */
-  private calculateDataRisk(taskType: string, payload?: Record<string, unknown>): number {
+  private calculateDataRisk(taskType: string, _payload?: Record<string, unknown>): number {
     let risk = 0;
 
     // Mutation operations
@@ -237,7 +237,7 @@ class RiskAssessmentService {
   /**
    * Gather all risk factors for a task
    */
-  private gatherRiskFactors(taskType: string, payload?: Record<string, unknown>): RiskFactor[] {
+  private gatherRiskFactors(taskType: string, _payload?: Record<string, unknown>): RiskFactor[] {
     const factors: RiskFactor[] = [];
 
     // Check failure history
@@ -284,7 +284,7 @@ class RiskAssessmentService {
    * Determine mitigation strategy
    */
   private getMitigationStrategy(
-    taskType: string,
+    _taskType: string,
     riskLevel: RiskLevel,
     pattern: FailurePattern,
     risks: RiskFactor[]
@@ -338,7 +338,7 @@ class RiskAssessmentService {
    * Generate human-readable recommendation
    */
   private generateRecommendation(
-    taskType: string,
+    _taskType: string,
     riskLevel: RiskLevel,
     pattern: FailurePattern
   ): string {

@@ -178,7 +178,6 @@ class SMLGuardianService {
   private alerts: SystemAlert[] = [];
   private activeSessions: Map<string, InteractionContext> = new Map();
   private heartbeatInterval: NodeJS.Timeout | null = null;
-  private initializationTime: Date = new Date();
 
   static getInstance(): SMLGuardianService {
     if (!SMLGuardianService.instance) {
@@ -243,7 +242,7 @@ class SMLGuardianService {
    */
   async processInteraction(
     userId: string,
-    userInput: string,
+    _userInput: string,
     emotionalState?: { intensity: number; stability: number; primaryEmotion: string }
   ): Promise<GuardianResponse> {
     this.systemState = 'active';
@@ -327,7 +326,7 @@ class SMLGuardianService {
       return this.config.defaultMode;
     }
 
-    const { intensity, stability, primaryEmotion } = emotionalState;
+    const { intensity, stability } = emotionalState;
 
     // Mode selection logic
     if (stability > 0.7) {
@@ -452,9 +451,11 @@ class SMLGuardianService {
     if (modeKey in this.metrics.agentPerformance) {
       const modeStats = this.metrics.agentPerformance[modeKey];
       modeStats.interactions++;
-      modeStats.averageResponseTime =
-        (modeStats.averageResponseTime * (modeStats.interactions - 1) + responseTime) /
-        modeStats.interactions;
+      if ('averageResponseTime' in modeStats) {
+        modeStats.averageResponseTime =
+          (modeStats.averageResponseTime * (modeStats.interactions - 1) + responseTime) /
+          modeStats.interactions;
+      }
     }
 
     this.metrics.averageResponseTime =
@@ -490,11 +491,11 @@ class SMLGuardianService {
     metrics: SystemMetrics;
   } {
     const activeAgents = Object.entries(this.systemHealth.agentStates)
-      .filter(([_, state]) => state === 'active')
+      .filter(([_agent, state]) => state === 'active')
       .map(([agent]) => agent);
 
     const activeSupport = Object.entries(this.systemHealth.supportSystems)
-      .filter(([_, state]) => state === 'active')
+      .filter(([_system, state]) => state === 'active')
       .map(([system]) => system);
 
     return {
@@ -536,33 +537,34 @@ class SMLGuardianService {
 
   /**
    * Create system alert
+   * Note: This method is reserved for future use when alert creation is needed
    */
-  private createAlert(
-    severity: 'info' | 'warning' | 'critical',
-    system: string,
-    message: string,
-    action: string
-  ): void {
-    const alert: SystemAlert = {
-      alertId: this.generateAlertId(),
-      severity,
-      timestamp: new Date(),
-      system,
-      message,
-      recommended_action: action,
-      resolved: false,
-    };
-
-    this.alerts.push(alert);
-
-    if (severity === 'critical') {
-      this.systemHealth.errorCount++;
-    } else if (severity === 'warning') {
-      this.systemHealth.warningCount++;
-    }
-
-    console.log(`⚠️ ${severity.toUpperCase()}: ${message}`);
-  }
+  // private createAlert(
+  //   severity: 'info' | 'warning' | 'critical',
+  //   system: string,
+  //   message: string,
+  //   action: string
+  // ): void {
+  //   const alert: SystemAlert = {
+  //     alertId: this.generateAlertId(),
+  //     severity,
+  //     timestamp: new Date(),
+  //     system,
+  //     message,
+  //     recommended_action: action,
+  //     resolved: false,
+  //   };
+  //
+  //   this.alerts.push(alert);
+  //
+  //   if (severity === 'critical') {
+  //     this.systemHealth.errorCount++;
+  //   } else if (severity === 'warning') {
+  //     this.systemHealth.warningCount++;
+  //   }
+  //
+  //   console.log(`⚠️ ${severity.toUpperCase()}: ${message}`);
+  // }
 
   /**
    * Format uptime to human readable format
@@ -592,9 +594,9 @@ class SMLGuardianService {
     return `sess-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  private generateAlertId(): string {
-    return `alert-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  }
+  // private _generateAlertId(): string {
+  //   return `alert-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  // }
 
   /**
    * Reset service state (for testing)
@@ -608,7 +610,6 @@ class SMLGuardianService {
     this.systemState = 'initializing';
     this.activeSessions.clear();
     this.alerts = [];
-    this.initializationTime = new Date();
     this.systemHealth = {
       state: 'initializing',
       uptime: 0,

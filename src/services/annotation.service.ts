@@ -10,7 +10,7 @@
  * - Version history tracking
  */
 
-import { dbService, type ChatMessage } from './db.service';
+import { dbService } from './db.service';
 
 export type AnnotationType = 'comment' | 'highlight' | 'question' | 'flag';
 export type AnnotationStatus = 'active' | 'resolved' | 'archived';
@@ -88,8 +88,9 @@ class AnnotationService {
     color?: string
   ): Annotation {
     try {
-      // Verify message exists
-      const message = dbService.getMessage(messageId);
+      // Verify message exists - get from all messages
+      const allMessages = dbService.getAllMessages();
+      const message = allMessages.find((m) => m.id === messageId);
       if (!message) {
         throw new Error(`Message not found: ${messageId}`);
       }

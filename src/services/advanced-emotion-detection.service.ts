@@ -20,7 +20,6 @@
  */
 
 import { userLinguisticProfileService } from './user-linguistic-profile.service';
-import { tonalResonanceService } from './tonal-resonance.service';
 
 export enum PrimaryEmotion {
   JOY = 'joy',
@@ -135,7 +134,7 @@ class AdvancedEmotionDetectionService {
   ]);
 
   // Rumination patterns (repeated negative thoughts)
-  private ruminationThreshold = 3;  // Number of repetitions before flagging
+  // private _ruminationThreshold = 3;  // Number of repetitions before flagging - unused
 
   /**
    * Initialize the service
@@ -149,7 +148,7 @@ class AdvancedEmotionDetectionService {
    */
   detectEmotionalState(userId: string, recentMessage?: string): EmotionalState {
     const profile = userLinguisticProfileService.getProfile(userId);
-    const text = recentMessage || profile?.rawMessages?.slice(-3).join(' ') || '';
+    const text = recentMessage || (profile && (profile as any).rawMessages) ? ((profile as any).rawMessages.slice(-3).join(' ')) : '';
 
     if (!text) {
       return this.createNeutralState(userId);
@@ -315,7 +314,7 @@ class AdvancedEmotionDetectionService {
    */
   private detectSecondaryEmotions(
     text: string,
-    scores: Record<PrimaryEmotion, number>
+    _scores: Record<PrimaryEmotion, number>
   ): { emotion: string; intensity: number }[] {
     const secondary: { emotion: string; intensity: number }[] = [];
 
@@ -393,7 +392,7 @@ class AdvancedEmotionDetectionService {
   /**
    * Detect emotional trajectory
    */
-  private detectTrajectory(userId: string, text: string): 'escalating' | 'de-escalating' | 'stable' {
+  private detectTrajectory(_userId: string, text: string): 'escalating' | 'de-escalating' | 'stable' {
     // Simple heuristic: check for escalation markers
     const escalationWords = /\b(getting|becoming|more|worse|increasingly|can't take|breaking|falling apart)\b/gi;
     const calming = /\b(better|improving|calming|relaxing|feeling better)\b/gi;

@@ -546,7 +546,7 @@ class ModeTransparencyService {
     title: string,
     message: string,
     mode: AgentMode,
-    relatedId?: string
+    _relatedId?: string
   ): TransparencyNotification {
     const notification: TransparencyNotification = {
       notificationId: this.generateNotificationId(),

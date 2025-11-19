@@ -507,7 +507,7 @@ class MemoryConsolidationService {
   private consolidateEncodedMemories(
     encoded: ConsolidatedMemory[],
     patterns: Map<string, MemoryPattern>,
-    cycleId: string
+    _cycleId: string
   ): number {
     let consolidatedCount = 0;
 
@@ -748,7 +748,7 @@ class MemoryConsolidationService {
   /**
    * Search memories by concept
    */
-  searchByConceptl(concept: string): ConsolidatedMemory[] {
+  searchByConcept(concept: string): ConsolidatedMemory[] {
     return Array.from(this.consolidatedMemories.values()).filter((m) =>
       m.relatedConcepts.includes(concept)
     );

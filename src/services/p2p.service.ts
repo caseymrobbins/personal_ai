@@ -8,7 +8,7 @@
  * - Connection state management
  */
 
-import { dbService, type ChatMessage, type Conversation } from './db.service';
+import { dbService } from './db.service';
 
 export type SharePermission = 'read-only' | 'read-write';
 export type ConnectionState = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';
@@ -42,7 +42,7 @@ class P2PService extends EventTarget {
   private connections = new Map<string, P2PConnection>();
   private shareLinks = new Map<string, ShareLink>();
   private messageQueue: any[] = [];
-  private isConnected = false;
+  private _isConnected = false;
 
   // WebRTC config
   private rtcConfig: RTCConfiguration = {

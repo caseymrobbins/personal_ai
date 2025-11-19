@@ -20,7 +20,6 @@
 
 import { advancedEmotionDetectionService, EmotionalState, PrimaryEmotion } from './advanced-emotion-detection.service';
 import { stabilityDetectionService } from './stability-detection.service';
-import { stateResponseMappingService } from './state-response-mapping.service';
 
 export interface MoodState {
   userId: string;
@@ -140,7 +139,7 @@ class MoodTriggeredModeSwitchingService {
     const transition = this.createTransition(userId, currentMode, targetMode, emotionalState);
 
     // Execute mode switch
-    this.executeModSwitch(userId, transition);
+    this.executeModeSwitch(userId, transition);
 
     console.log(
       `[MoodTriggeredModeSwitching] 🔄 Mode switch for user ${userId}: ` +
@@ -314,7 +313,7 @@ class MoodTriggeredModeSwitchingService {
   /**
    * Execute mode switch
    */
-  private executeModSwitch(userId: string, transition: MoodTransition): void {
+  private executeModeSwitch(userId: string, transition: MoodTransition): void {
     const moodState = this.activeMoodStates.get(userId);
 
     if (moodState) {

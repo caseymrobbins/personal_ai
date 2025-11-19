@@ -172,8 +172,8 @@ export function ChatContainer() {
           goalsEvaluated: result.goalsEvaluated,
           progressUpdates: result.progressUpdates,
           completedGoals: result.goalsCompleted,
-          stalledGoals: result.stalledGoalsDetected,
-          autonomousTasksGenerated: result.autonomousTasksGenerated,
+          stalledGoals: result.goalsStalled,
+          autonomousTasksGenerated: result.autonomousTasksExecuted,
         });
       } catch (error) {
         console.warn('[ChatContainer] Goal evaluation cycle failed:', error);
@@ -318,8 +318,6 @@ export function ChatContainer() {
             'user',
             content,
             {
-              messageId: userMessageId,
-              timestamp: Date.now(),
               hasAttachments: !!(imageFiles?.length || documentFiles?.length),
               attachmentCount: (imageFiles?.length || 0) + (documentFiles?.length || 0),
             }
@@ -568,8 +566,6 @@ export function ChatContainer() {
             'assistant',
             assistantContent,
             {
-              messageId: assistantMessageId,
-              timestamp: Date.now(),
               moduleUsed: selectedAdapterId,
               hasAttachments: false,
             }

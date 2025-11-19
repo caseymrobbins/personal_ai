@@ -13,14 +13,12 @@
  * Results are consolidated back into memory systems for future use.
  */
 
-import { dbService } from './db.service';
 import { workingMemoryService } from './working-memory.service';
 import { longTermMemoryService } from './long-term-memory.service';
 import { declarativeKBService } from './declarative-kb.service';
 import { goalManagementService } from './goal-management.service';
 import { entityExtractorService } from './entity-extractor.service';
 import { userModelService } from './user-model.service';
-import { cognitiveSchedulerService } from './cognitive-scheduler.service';
 
 export type TaskHandlerType =
   | 'memory_consolidation'
@@ -50,7 +48,6 @@ export interface TaskExecutionResult {
  */
 class AutonomousTaskHandlersService {
   private executionResults: TaskExecutionResult[] = [];
-  private isProcessing = false;
 
   /**
    * Initialize the service
@@ -135,7 +132,7 @@ class AutonomousTaskHandlersService {
    */
   private async handleMemoryConsolidation(
     result: TaskExecutionResult,
-    payload?: Record<string, unknown>
+    _payload?: Record<string, unknown>
   ): Promise<void> {
     try {
       // Get consolidation candidates from working memory
@@ -156,7 +153,7 @@ class AutonomousTaskHandlersService {
       );
 
       // Mark items as consolidated
-      for (const candidate of candidates) {
+      for (const _candidate of candidates) {
         // Could update status in DB if needed
       }
 
@@ -171,7 +168,7 @@ class AutonomousTaskHandlersService {
    */
   private async handlePatternAnalysis(
     result: TaskExecutionResult,
-    payload?: Record<string, unknown>
+    _payload?: Record<string, unknown>
   ): Promise<void> {
     try {
       // Analyze recent memories for patterns
@@ -219,7 +216,7 @@ class AutonomousTaskHandlersService {
    */
   private async handleEntityExtraction(
     result: TaskExecutionResult,
-    payload?: Record<string, unknown>
+    _payload?: Record<string, unknown>
   ): Promise<void> {
     try {
       // Extract from recent memories
@@ -298,7 +295,7 @@ class AutonomousTaskHandlersService {
    */
   private async handleGoalAnalysis(
     result: TaskExecutionResult,
-    payload?: Record<string, unknown>
+    _payload?: Record<string, unknown>
   ): Promise<void> {
     try {
       // Analyze all active goals
@@ -338,7 +335,7 @@ class AutonomousTaskHandlersService {
    */
   private async handleKBMaintenance(
     result: TaskExecutionResult,
-    payload?: Record<string, unknown>
+    _payload?: Record<string, unknown>
   ): Promise<void> {
     try {
       const kbStats = declarativeKBService.getStats();
@@ -356,14 +353,14 @@ class AutonomousTaskHandlersService {
         nameMap[normalized].push(entity.id);
       });
 
-      const duplicates = Object.entries(nameMap).filter(([_, ids]) => ids.length > 1);
+      const duplicates = Object.entries(nameMap).filter(([_name, ids]) => ids.length > 1);
       result.insightsGenerated.push(
         `Found ${duplicates.length} potential duplicate entities`
       );
 
       // Attempt to merge duplicates
       let mergedCount = 0;
-      for (const [name, ids] of duplicates) {
+      for (const [_name, ids] of duplicates) {
         if (ids.length === 2) {
           try {
             declarativeKBService.mergeEntities(ids[0], ids[1]);
@@ -386,7 +383,7 @@ class AutonomousTaskHandlersService {
    */
   private async handleUserModelUpdate(
     result: TaskExecutionResult,
-    payload?: Record<string, unknown>
+    _payload?: Record<string, unknown>
   ): Promise<void> {
     try {
       const profile = userModelService.getProfile();
