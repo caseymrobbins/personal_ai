@@ -281,7 +281,6 @@ const StatusCard: React.FC<{
   <div
     style={{
       padding: '16px',
-      backgroundColor: 'white',
       borderRadius: '8px',
       border: `1px solid ${color}33`,
       backgroundColor: `${color}08`,
