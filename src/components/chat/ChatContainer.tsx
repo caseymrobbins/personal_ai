@@ -17,7 +17,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ChatInterface } from './ChatInterface';
 import { AdapterSelector } from '../AdapterSelector';
 import { ConversationSidebar } from '../ConversationSidebar';
-import { CognitiveStatusDashboard } from '../CognitiveStatusDashboard';
+import CognitiveStatusDashboard from '../CognitiveStatusDashboard';
 import { KeyboardShortcutsProvider } from '../shortcuts/KeyboardShortcutsProvider';
 import { dbService, type ChatMessage, type Conversation } from '../../services/db.service';
 import { initializeDatabase } from '../../db/init';
@@ -798,53 +798,69 @@ export function ChatContainer() {
         {/* Main chat area with optional dashboard panel */}
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', gap: '0.5px' }}>
           <div style={{ flex: showCognitivePanel ? 2 : 1, overflow: 'hidden', minWidth: '0' }}>
-    <KeyboardShortcutsProvider
-      onNewConversation={createNewConversation}
-      onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-      onFocusInput={handleFocusInput}
-    >
-      {/* Skip Links for Accessibility */}
-      <a href="#main-content" className="skip-link">
-        Skip to main content
-      </a>
-      <a href="#conversations-nav" className="skip-link">
-        Skip to conversations
-      </a>
+            <KeyboardShortcutsProvider
+              onNewConversation={createNewConversation}
+              onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+              onFocusInput={handleFocusInput}
+            >
+              {/* Skip Links for Accessibility */}
+              <a href="#main-content" className="skip-link">
+                Skip to main content
+              </a>
+              <a href="#conversations-nav" className="skip-link">
+                Skip to conversations
+              </a>
 
-      <div style={{ height: '100%', display: 'flex' }} lang="en">
-        {/* Screen reader only heading */}
-        <h1 className="sr-only">SML Guardian AI Chat Application</h1>
+              <div style={{ height: '100%', display: 'flex' }} lang="en">
+                {/* Screen reader only heading */}
+                <h1 className="sr-only">SML Guardian AI Chat Application</h1>
 
-        <ConversationSidebar
-          conversations={conversations}
-          currentConversationId={currentConversation?.id || null}
-          onConversationSelect={switchToConversation}
-          onConversationCreate={createNewConversation}
-          onConversationUpdate={loadConversations}
-          isOpen={sidebarOpen}
-          onToggle={() => setSidebarOpen(!sidebarOpen)}
-        />
+                <ConversationSidebar
+                  conversations={conversations}
+                  currentConversationId={currentConversation?.id || null}
+                  onConversationSelect={switchToConversation}
+                  onConversationCreate={createNewConversation}
+                  onConversationUpdate={loadConversations}
+                  isOpen={sidebarOpen}
+                  onToggle={() => setSidebarOpen(!sidebarOpen)}
+                />
 
-        <div
-          style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
-          role="main"
-          aria-label="Chat interface"
-        >
-          <AdapterSelector />
-          <div id="main-content" style={{ flex: 1, overflow: 'hidden' }}>
-            <ChatInterface
-              messages={messages}
-              onSendMessage={handleSendMessage}
-              isLoading={isLoading}
-              loadingMessage={
-                selectedAdapterId === 'local_guardian'
-                  ? 'Local AI is thinking...'
-                  : `${adapterRegistry.get(selectedAdapterId)?.name} is thinking...`
-              }
-            />
+                <div
+                  style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+                  role="main"
+                  aria-label="Chat interface"
+                >
+                  <AdapterSelector />
+                  <div id="main-content" style={{ flex: 1, overflow: 'hidden' }}>
+                    <ChatInterface
+                      messages={messages}
+                      onSendMessage={handleSendMessage}
+                      isLoading={isLoading}
+                      loadingMessage={
+                        selectedAdapterId === 'local_guardian'
+                          ? 'Local AI is thinking...'
+                          : `${adapterRegistry.get(selectedAdapterId)?.name} is thinking...`
+                      }
+                    />
+                  </div>
+
+                  {/* Phase 3: Cognitive Status Dashboard Panel */}
+                  {showCognitivePanel && (
+                    <div style={{
+                      flex: 1,
+                      overflow: 'auto',
+                      borderLeft: '1px solid rgba(229, 231, 235, 0.5)',
+                      backgroundColor: 'rgba(249, 250, 251, 0.8)',
+                      minWidth: '0',
+                    }}>
+                      <CognitiveStatusDashboard />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </KeyboardShortcutsProvider>
           </div>
 
-          {/* Phase 3: Cognitive Status Dashboard Panel */}
           {showCognitivePanel && (
             <div style={{
               flex: 1,
@@ -858,6 +874,6 @@ export function ChatContainer() {
           )}
         </div>
       </div>
-    </KeyboardShortcutsProvider>
+    </div>
   );
 }

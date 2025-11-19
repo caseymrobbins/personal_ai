@@ -101,7 +101,7 @@ export function KnowledgeGraphVisualizer({ conversationId, isOpen, onClose }: Kn
       vx: 0,
       vy: 0,
       radius: Math.sqrt(concept.importance) * 20 + 5,
-      color: this.getConceptColor(concept.type, concept.importance),
+      color: getConceptColor(concept.type, concept.importance),
     }));
 
     const conceptMap = new Map(simConcepts.map((c) => [c.id, c]));
@@ -120,7 +120,7 @@ export function KnowledgeGraphVisualizer({ conversationId, isOpen, onClose }: Kn
   /**
    * Get color for concept type and importance
    */
-  private getConceptColor(type: string, importance: number): string {
+  const getConceptColor = (type: string, importance: number): string => {
     const typeColors: Record<string, string> = {
       entity: '#667eea',
       topic: '#764ba2',
@@ -133,7 +133,7 @@ export function KnowledgeGraphVisualizer({ conversationId, isOpen, onClose }: Kn
 
     // Could apply importance-based alpha variation here
     return baseColor;
-  }
+  };
 
   /**
    * Update force simulation
