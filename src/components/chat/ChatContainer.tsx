@@ -18,6 +18,7 @@ import { ChatInterface } from './ChatInterface';
 import { AdapterSelector } from '../AdapterSelector';
 import { ConversationSidebar } from '../ConversationSidebar';
 import { CognitiveStatusDashboard } from '../CognitiveStatusDashboard';
+import { KeyboardShortcutsProvider } from '../shortcuts/KeyboardShortcutsProvider';
 import { dbService, type ChatMessage, type Conversation } from '../../services/db.service';
 import { initializeDatabase } from '../../db/init';
 import { adapterRegistry } from '../../modules/adapters';
@@ -29,6 +30,8 @@ import { socraticService } from '../../services/socratic.service';
 import { preferencesService } from '../../services/preferences.service';
 import { attachmentsService } from '../../services/attachments.service';
 import { documentParsingService } from '../../services/document.service';
+import { themeService } from '../../services/theme.service';
+import { accessibilityService } from '../../services/accessibility.service';
 import { useChatState } from '../../store/chat.store';
 import type { IChatCompletionRequest } from '../../modules/adapters';
 // Phase 2: Cognitive Services Integration
@@ -91,6 +94,14 @@ export function ChatContainer() {
         // Initialize user preferences
         await preferencesService.initialize();
         console.log('[ChatContainer] Preferences loaded');
+
+        // Initialize theme service
+        themeService.initialize();
+        console.log('[ChatContainer] Theme service initialized');
+
+        // Initialize accessibility service
+        accessibilityService.initialize();
+        console.log('[ChatContainer] Accessibility service initialized');
 
         // Apply user preferences
         const prefs = preferencesService.getPreferences();
@@ -341,6 +352,8 @@ export function ChatContainer() {
           console.warn('[ChatContainer] Failed to process user message for learning:', error);
           // Don't fail the conversation
         }
+        // Announce message sent to screen readers
+        accessibilityService.announce('Message sent', 'polite');
 
         // STEP 2: Track governance metrics (ARI + RDI)
         // ARI: Autonomy Retention Index - measures user autonomy
@@ -582,6 +595,8 @@ export function ChatContainer() {
         } catch (error) {
           console.warn('[ChatContainer] Failed to process agent response for learning:', error);
         }
+        // Announce response received to screen readers
+        accessibilityService.announce('Response received from AI', 'polite');
       } catch (error) {
         console.error('[ChatContainer] ❌ Failed to get response:', error);
 
@@ -600,6 +615,9 @@ export function ChatContainer() {
           };
 
           setMessages(prev => [...prev, abortMessage]);
+
+          // Announce request stopped
+          accessibilityService.announce('Request stopped by user', 'assertive');
         } else {
           // Other errors
           const errorMessage: ChatMessage = {
@@ -613,8 +631,11 @@ export function ChatContainer() {
           };
 
           setMessages(prev => [...prev, errorMessage]);
+
+          // Announce error
+          accessibilityService.announce(`Error: ${error instanceof Error ? error.message : 'Failed to get response'}`, 'assertive');
         }
-      } finally {
+      } finally{
         setIsLoading(false);
         setModuleState('IDLE');
         setAbortController(null); // Always clear abort controller
@@ -707,6 +728,14 @@ export function ChatContainer() {
     );
   }
 
+  // Keyboard shortcut handlers
+  const handleFocusInput = () => {
+    const inputElement = document.querySelector('textarea[placeholder*="message"]') as HTMLTextAreaElement;
+    if (inputElement) {
+      inputElement.focus();
+    }
+  };
+
   // Show chat interface with adapter selector and conversation sidebar
   return (
     <div style={{ height: '100%', display: 'flex' }}>
@@ -769,6 +798,40 @@ export function ChatContainer() {
         {/* Main chat area with optional dashboard panel */}
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', gap: '0.5px' }}>
           <div style={{ flex: showCognitivePanel ? 2 : 1, overflow: 'hidden', minWidth: '0' }}>
+    <KeyboardShortcutsProvider
+      onNewConversation={createNewConversation}
+      onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+      onFocusInput={handleFocusInput}
+    >
+      {/* Skip Links for Accessibility */}
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+      <a href="#conversations-nav" className="skip-link">
+        Skip to conversations
+      </a>
+
+      <div style={{ height: '100%', display: 'flex' }} lang="en">
+        {/* Screen reader only heading */}
+        <h1 className="sr-only">SML Guardian AI Chat Application</h1>
+
+        <ConversationSidebar
+          conversations={conversations}
+          currentConversationId={currentConversation?.id || null}
+          onConversationSelect={switchToConversation}
+          onConversationCreate={createNewConversation}
+          onConversationUpdate={loadConversations}
+          isOpen={sidebarOpen}
+          onToggle={() => setSidebarOpen(!sidebarOpen)}
+        />
+
+        <div
+          style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+          role="main"
+          aria-label="Chat interface"
+        >
+          <AdapterSelector />
+          <div id="main-content" style={{ flex: 1, overflow: 'hidden' }}>
             <ChatInterface
               messages={messages}
               onSendMessage={handleSendMessage}
@@ -795,6 +858,6 @@ export function ChatContainer() {
           )}
         </div>
       </div>
-    </div>
+    </KeyboardShortcutsProvider>
   );
 }

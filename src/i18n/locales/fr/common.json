@@ -1,0 +1,46 @@
+{
+  "app": {
+    "title": "SML Guardian",
+    "subtitle": "Chat IA Local d'Abord",
+    "description": "Chat IA axé sur la confidentialité qui fonctionne entièrement dans votre navigateur"
+  },
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "close": "Fermer",
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "success": "Succès",
+    "confirm": "Confirmer",
+    "back": "Retour",
+    "next": "Suivant",
+    "previous": "Précédent",
+    "search": "Rechercher",
+    "results": "Résultats",
+    "noResults": "Aucun résultat trouvé",
+    "language": "Langue",
+    "theme": "Thème",
+    "settings": "Paramètres",
+    "help": "Aide",
+    "about": "À propos",
+    "version": "Version"
+  },
+  "errors": {
+    "tryAgain": "Réessayer",
+    "contactSupport": "Contacter le support",
+    "unknownError": "Une erreur inconnue s'est produite",
+    "networkError": "Erreur réseau",
+    "loadingFailed": "Échec du chargement",
+    "saveFailed": "Échec de l'enregistrement"
+  },
+  "validation": {
+    "required": "Ce champ est obligatoire",
+    "invalid": "Entrée invalide",
+    "tooShort": "Trop court",
+    "tooLong": "Trop long",
+    "invalidEmail": "Adresse e-mail invalide",
+    "passwordMismatch": "Les mots de passe ne correspondent pas"
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "settings": {
+    "title": "Configuración",
+    "general": "General",
+    "appearance": "Apariencia",
+    "accessibility": "Accesibilidad",
+    "privacy": "Privacidad",
+    "about": "Acerca de",
+    "language": "Idioma",
+    "selectLanguage": "Selecciona idioma",
+    "theme": "Tema",
+    "darkMode": "Modo Oscuro",
+    "lightMode": "Modo Claro",
+    "autoMode": "Auto (Sistema)"
+  },
+  "themes": {
+    "colorScheme": "Esquema de Color",
+    "dark": "Oscuro",
+    "light": "Claro",
+    "nord": "Nord",
+    "solarized": "Solarizado",
+    "monokai": "Monokai",
+    "custom": "Personalizado",
+    "font": "Fuente",
+    "fontSize": "Tamaño de Fuente",
+    "small": "Pequeño (14px)",
+    "medium": "Medio (16px)",
+    "large": "Grande (18px)",
+    "xLarge": "Extra Grande (20px)",
+    "density": "Densidad de UI",
+    "compact": "Compacta",
+    "comfortable": "Cómoda",
+    "spacious": "Espaciosa"
+  },
+  "preferences": {
+    "socraticMode": "Modo Socrático",
+    "socraticModeDescription": "Hacer preguntas aclaratorias en lugar de respuestas directas",
+    "enableNotifications": "Habilitar Notificaciones",
+    "autoSave": "Guardar conversaciones automáticamente",
+    "fontSize": "Tamaño Base de Fuente"
+  },
+  "backup": {
+    "title": "Respaldo",
+    "create": "Crear Respaldo",
+    "restore": "Restaurar Respaldo",
+    "schedule": "Programar Respaldos",
+    "password": "Contraseña de Respaldo",
+    "confirmPassword": "Confirmar Contraseña",
+    "created": "Respaldo creado exitosamente",
+    "restored": "Respaldo restaurado exitosamente"
+  },
+  "export": {
+    "title": "Exportar",
+    "exportAllConversations": "Exportar Todas las Conversaciones",
+    "exportFormat": "Formato de Exportación",
+    "json": "JSON",
+    "csv": "CSV",
+    "pdf": "PDF",
+    "excel": "Excel"
+  },
+  "privacy": {
+    "title": "Configuración de Privacidad",
+    "anonymize": "Anonimizar datos para adaptadores externos",
+    "clearCache": "Limpiar caché",
+    "clearCacheConfirm": "¿Estás seguro? Esto borrará todos los datos en caché.",
+    "deleteAllData": "Eliminar todos los datos",
+    "deleteAllDataConfirm": "Advertencia: Esto eliminará permanentemente todas las conversaciones y configuración. Esto no se puede deshacer."
+  }
+}

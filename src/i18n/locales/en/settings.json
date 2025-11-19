@@ -1,0 +1,69 @@
+{
+  "settings": {
+    "title": "Settings",
+    "general": "General",
+    "appearance": "Appearance",
+    "accessibility": "Accessibility",
+    "privacy": "Privacy",
+    "about": "About",
+    "language": "Language",
+    "selectLanguage": "Select language",
+    "theme": "Theme",
+    "darkMode": "Dark Mode",
+    "lightMode": "Light Mode",
+    "autoMode": "Auto (System)"
+  },
+  "themes": {
+    "colorScheme": "Color Scheme",
+    "dark": "Dark",
+    "light": "Light",
+    "nord": "Nord",
+    "solarized": "Solarized",
+    "monokai": "Monokai",
+    "custom": "Custom",
+    "font": "Font",
+    "fontSize": "Font Size",
+    "small": "Small (14px)",
+    "medium": "Medium (16px)",
+    "large": "Large (18px)",
+    "xLarge": "Extra Large (20px)",
+    "density": "UI Density",
+    "compact": "Compact",
+    "comfortable": "Comfortable",
+    "spacious": "Spacious"
+  },
+  "preferences": {
+    "socraticMode": "Socratic Mode",
+    "socraticModeDescription": "Ask clarifying questions instead of direct answers",
+    "enableNotifications": "Enable Notifications",
+    "autoSave": "Auto-save conversations",
+    "fontSize": "Base Font Size"
+  },
+  "backup": {
+    "title": "Backup",
+    "create": "Create Backup",
+    "restore": "Restore Backup",
+    "schedule": "Schedule Backups",
+    "password": "Backup Password",
+    "confirmPassword": "Confirm Password",
+    "created": "Backup created successfully",
+    "restored": "Backup restored successfully"
+  },
+  "export": {
+    "title": "Export",
+    "exportAllConversations": "Export All Conversations",
+    "exportFormat": "Export Format",
+    "json": "JSON",
+    "csv": "CSV",
+    "pdf": "PDF",
+    "excel": "Excel"
+  },
+  "privacy": {
+    "title": "Privacy Settings",
+    "anonymize": "Anonymize data for external adapters",
+    "clearCache": "Clear cache",
+    "clearCacheConfirm": "Are you sure? This will clear all cached data.",
+    "deleteAllData": "Delete all data",
+    "deleteAllDataConfirm": "Warning: This will permanently delete all conversations and settings. This cannot be undone."
+  }
+}

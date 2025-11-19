@@ -1,0 +1,46 @@
+{
+  "app": {
+    "title": "SML Guardian",
+    "subtitle": "Local-First AI Chat",
+    "description": "Privacy-first AI chat that runs entirely in your browser"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "search": "Search",
+    "results": "Results",
+    "noResults": "No results found",
+    "language": "Language",
+    "theme": "Theme",
+    "settings": "Settings",
+    "help": "Help",
+    "about": "About",
+    "version": "Version"
+  },
+  "errors": {
+    "tryAgain": "Try again",
+    "contactSupport": "Contact support",
+    "unknownError": "An unknown error occurred",
+    "networkError": "Network error",
+    "loadingFailed": "Failed to load",
+    "saveFailed": "Failed to save"
+  },
+  "validation": {
+    "required": "This field is required",
+    "invalid": "Invalid input",
+    "tooShort": "Too short",
+    "tooLong": "Too long",
+    "invalidEmail": "Invalid email address",
+    "passwordMismatch": "Passwords do not match"
+  }
+}

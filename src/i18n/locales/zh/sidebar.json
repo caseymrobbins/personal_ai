@@ -1,0 +1,41 @@
+{
+  "sidebar": {
+    "title": "对话",
+    "toggleButton": "切换对话",
+    "newConversation": "新建",
+    "newConversationLabel": "开始新对话",
+    "importConversations": "导入",
+    "importLabel": "从ChatGPT或Claude导入对话",
+    "searchPlaceholder": "搜索对话...",
+    "searchInstructions": "输入至少3个字符并按Enter键搜索",
+    "noConversations": "还没有对话",
+    "noConversationsHint": "点击\"新建\"开始",
+    "conversationCount": "{{count}}个对话",
+    "conversationCount_plural": "{{count}}个对话",
+    "messageCount": "{{count}}条消息",
+    "messageCount_plural": "{{count}}条消息"
+  },
+  "conversation": {
+    "rename": "重命名",
+    "export": "导出",
+    "delete": "删除",
+    "deleteConfirm": "删除对话\"{{title}}\"?此操作无法撤销。",
+    "renamePrompt": "输入对话的新名称",
+    "renamed": "对话已重命名",
+    "exported": "对话已导出",
+    "deleted": "对话已删除",
+    "justNow": "刚刚",
+    "minutesAgo": "{{count}}分钟前",
+    "hoursAgo": "{{count}}小时前",
+    "daysAgo": "{{count}}天前"
+  },
+  "footer": {
+    "exportAll": "全部导出",
+    "exportAllLabel": "导出所有对话",
+    "backup": "备份",
+    "backupLabel": "加密备份",
+    "theme": "主题",
+    "themeLabel": "主题和外观设置"
+  }
+}
+

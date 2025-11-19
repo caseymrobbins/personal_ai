@@ -1,0 +1,225 @@
+/* Annotation Highlight Styles */
+
+.annotation-highlight-container {
+  position: relative;
+  line-height: 1.6;
+  word-break: break-word;
+  user-select: text;
+}
+
+/* Plain text segments */
+.annotation-text-plain {
+  display: inline;
+}
+
+/* Highlighted text with annotation */
+.annotation-highlighted {
+  position: relative;
+  padding: 0.125rem 0.25rem;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: filter 0.2s ease;
+  display: inline-block;
+}
+
+.annotation-highlighted:hover {
+  filter: brightness(0.9);
+  outline: 2px solid rgba(0, 0, 0, 0.3);
+  outline-offset: -1px;
+}
+
+.annotation-highlighted:active {
+  filter: brightness(0.85);
+}
+
+/* Overlay count badge for multiple annotations */
+.annotation-overlay-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  margin-left: 0.25rem;
+  background: rgba(0, 0, 0, 0.4);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  border-radius: 50%;
+  padding: 0 0.25rem;
+}
+
+/* Tooltip shown on hover */
+.annotation-tooltip {
+  position: absolute;
+  bottom: calc(100% + 0.5rem);
+  left: 0;
+  z-index: 1000;
+  min-width: 250px;
+  max-width: 350px;
+  background: #16213e;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 0.75rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(0.5rem);
+  transition: all 0.2s ease;
+  display: none;
+}
+
+.annotation-highlighted:hover .annotation-tooltip {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(-0.25rem);
+  display: block;
+}
+
+/* Tooltip header */
+.annotation-tooltip-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.annotation-type-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background: rgba(102, 126, 234, 0.2);
+  border: 1px solid rgba(102, 126, 234, 0.4);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #667eea;
+  text-transform: capitalize;
+}
+
+.annotation-status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  margin-left: auto;
+}
+
+.annotation-status-badge[data-status='active'] {
+  background: rgba(34, 197, 94, 0.2);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  color: #22c55e;
+}
+
+.annotation-status-badge[data-status='resolved'] {
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  color: #3b82f6;
+}
+
+.annotation-status-badge[data-status='archived'] {
+  background: rgba(107, 114, 128, 0.2);
+  border: 1px solid rgba(107, 114, 128, 0.4);
+  color: #6b7280;
+}
+
+/* User info */
+.annotation-user {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.annotation-user-name {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.annotation-timestamp {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Preview text */
+.annotation-preview {
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-left: 2px solid rgba(102, 126, 234, 0.3);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.4;
+  max-height: 80px;
+  overflow-y: auto;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+/* Replies count */
+.annotation-replies-count {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-style: italic;
+}
+
+/* Light mode */
+@media (prefers-color-scheme: light) {
+  .annotation-highlighted:hover {
+    outline-color: rgba(0, 0, 0, 0.2);
+  }
+
+  .annotation-tooltip {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.1);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  }
+
+  .annotation-type-badge {
+    background: rgba(90, 103, 216, 0.1);
+    border-color: rgba(90, 103, 216, 0.3);
+    color: #5a67d8;
+  }
+
+  .annotation-user-name {
+    color: rgba(0, 0, 0, 0.95);
+  }
+
+  .annotation-timestamp {
+    color: rgba(0, 0, 0, 0.5);
+  }
+
+  .annotation-preview {
+    background: rgba(0, 0, 0, 0.03);
+    border-color: rgba(90, 103, 216, 0.2);
+    color: rgba(0, 0, 0, 0.8);
+  }
+
+  .annotation-replies-count {
+    color: rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .annotation-highlighted,
+  .annotation-tooltip {
+    transition: none;
+  }
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .annotation-tooltip {
+    min-width: 200px;
+    max-width: 300px;
+  }
+
+  .annotation-overlay-count {
+    min-width: 1.1rem;
+    height: 1.1rem;
+    font-size: 0.6rem;
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "chat": {
+    "title": "Chat",
+    "inputPlaceholder": "Escribe tu mensaje aquí...",
+    "sendButton": "Enviar",
+    "stopButton": "Detener",
+    "thinking": "Pensando...",
+    "waitingForResponse": "Esperando respuesta...",
+    "messageSent": "Mensaje enviado",
+    "responseReceived": "Respuesta recibida",
+    "emptyConversation": "Sin mensajes aún. ¡Comienza una conversación!",
+    "typingIndicator": "está escribiendo...",
+    "messageDeleted": "Mensaje eliminado",
+    "messageCopied": "Mensaje copiado al portapapeles",
+    "selectAdapter": "Selecciona adaptador de IA",
+    "adapterStatus": "Estado del adaptador",
+    "modelLoading": "Cargando modelo...",
+    "modelReady": "Modelo listo",
+    "modelError": "Error del modelo"
+  },
+  "messages": {
+    "user": "Tú",
+    "assistant": "Asistente",
+    "system": "Sistema",
+    "editMessage": "Editar mensaje",
+    "deleteMessage": "Eliminar mensaje",
+    "copyMessage": "Copiar mensaje",
+    "shareMessage": "Compartir mensaje"
+  },
+  "attachments": {
+    "attachFile": "Adjuntar archivo",
+    "image": "Imagen",
+    "document": "Documento",
+    "removeAttachment": "Remover adjunto",
+    "uploading": "Subiendo...",
+    "uploadedSuccessfully": "Subido exitosamente"
+  }
+}

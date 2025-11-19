@@ -1,0 +1,130 @@
+/* Annotation Button Styles */
+
+.annotation-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.annotation-button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(102, 126, 234, 0.5);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.annotation-button:focus {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+
+.annotation-button.active {
+  background: rgba(102, 126, 234, 0.2);
+  border-color: rgba(102, 126, 234, 0.5);
+  color: #667eea;
+}
+
+.annotation-icon {
+  display: inline-block;
+  font-size: 1.25rem;
+}
+
+/* Badge showing total annotation count */
+.annotation-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 0.4rem;
+  background: #667eea;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 10px;
+  line-height: 1;
+}
+
+/* Badge showing unresolved/active annotation count */
+.annotation-unresolved-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 0.4rem;
+  background: #ef4444;
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  border-radius: 10px;
+  border: 2px solid #16213e;
+  line-height: 1;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Light mode */
+@media (prefers-color-scheme: light) {
+  .annotation-button {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.1);
+    color: rgba(0, 0, 0, 0.8);
+  }
+
+  .annotation-button:hover {
+    background: rgba(0, 0, 0, 0.08);
+    border-color: rgba(90, 103, 216, 0.5);
+    color: rgba(0, 0, 0, 0.95);
+  }
+
+  .annotation-button:focus {
+    outline-color: #5a67d8;
+  }
+
+  .annotation-button.active {
+    background: rgba(90, 103, 216, 0.1);
+    border-color: rgba(90, 103, 216, 0.5);
+    color: #5a67d8;
+  }
+
+  .annotation-badge {
+    background: #5a67d8;
+  }
+
+  .annotation-unresolved-badge {
+    border-color: #ffffff;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .annotation-button,
+  .annotation-unresolved-badge {
+    transition: none;
+    animation: none;
+  }
+}

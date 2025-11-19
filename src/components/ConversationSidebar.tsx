@@ -16,6 +16,11 @@ import { dbService, type Conversation } from '../services/db.service';
 import { searchService, type SearchResult } from '../services/search.service';
 import { attachmentsService } from '../services/attachments.service';
 import { SearchResults } from './SearchResults';
+import { ImportDialog } from './import/ImportDialog';
+import { BackupDialog } from './backup/BackupDialog';
+import { ThemeDialog } from './theme/ThemeDialog';
+import { ShareDialog } from './p2p/ShareDialog';
+import { ExportLinkDialog } from './export/ExportLinkDialog';
 import './ConversationSidebar.css';
 
 export interface ConversationSidebarProps {
@@ -43,9 +48,24 @@ export function ConversationSidebar({
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showBackupDialog, setShowBackupDialog] = useState(false);
+  const [showThemeDialog, setShowThemeDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [shareConversationId, setShareConversationId] = useState<string | null>(null);
+  const [shareConversationTitle, setShareConversationTitle] = useState('');
+  const [showExportLinkDialog, setShowExportLinkDialog] = useState(false);
+  const [exportLinkConversationId, setExportLinkConversationId] = useState<string | null>(null);
+  const [exportLinkConversationTitle, setExportLinkConversationTitle] = useState('');
 
   const handleNewConversation = () => {
     onConversationCreate();
+  };
+
+  const handleImportComplete = (stats: any) => {
+    console.log('[ConversationSidebar] Import completed:', stats);
+    // Refresh conversation list
+    onConversationUpdate();
   };
 
   const handleSearch = async () => {
@@ -170,6 +190,18 @@ export function ConversationSidebar({
     URL.revokeObjectURL(url);
   };
 
+  const handleShare = (conversation: Conversation) => {
+    setShareConversationId(conversation.id);
+    setShareConversationTitle(conversation.title);
+    setShowShareDialog(true);
+  };
+
+  const handleExportLink = (conversation: Conversation) => {
+    setExportLinkConversationId(conversation.id);
+    setExportLinkConversationTitle(conversation.title);
+    setShowExportLinkDialog(true);
+  };
+
   const handleExportAll = () => {
     if (!confirm('Export all conversations?\n\nThis will create a JSON file with all your conversations and messages.')) {
       return;
@@ -246,36 +278,65 @@ export function ConversationSidebar({
   return (
     <>
       {/* Toggle button for mobile */}
-      <button className="sidebar-toggle" onClick={onToggle} title="Toggle conversations">
-        {isOpen ? '✕' : '💬'}
+      <button
+        className="sidebar-toggle"
+        onClick={onToggle}
+        aria-label="Toggle conversations sidebar"
+        aria-expanded={isOpen}
+        aria-controls="conversations-nav"
+      >
+        <span aria-hidden="true">{isOpen ? '✕' : '💬'}</span>
       </button>
 
       {/* Sidebar */}
-      <div className={`conversation-sidebar ${isOpen ? 'open' : 'closed'}`}>
+      <nav
+        id="conversations-nav"
+        className={`conversation-sidebar ${isOpen ? 'open' : 'closed'}`}
+        role="navigation"
+        aria-label="Conversations navigation"
+      >
         <div className="sidebar-header">
           <h2>Conversations</h2>
-          <button className="new-conversation-btn" onClick={handleNewConversation} title="New conversation">
-            ➕ New
-          </button>
+          <div className="sidebar-header-actions">
+            <button
+              className="import-conversation-btn"
+              onClick={() => setShowImportDialog(true)}
+              title="Import conversations from ChatGPT or Claude"
+            >
+              📥 Import
+            </button>
+            <button className="new-conversation-btn" onClick={handleNewConversation} title="New conversation">
+              ➕ New
+            </button>
+          </div>
         </div>
 
         {/* Search Bar (Sprint 11) */}
-        <div className="sidebar-search">
+        <div className="sidebar-search" role="search">
+          <label htmlFor="conversation-search" className="sr-only">
+            Search conversations
+          </label>
           <input
+            id="conversation-search"
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={handleSearchKeyDown}
             placeholder="Search conversations..."
             className="search-input"
+            aria-label="Search conversations"
+            aria-describedby="search-instructions"
           />
+          <span id="search-instructions" className="sr-only">
+            Type at least 3 characters and press Enter to search
+          </span>
           <button
             onClick={handleSearch}
             disabled={isSearching || searchQuery.trim().length < 3}
             className="search-btn"
-            title="Search (Enter)"
+            aria-label={isSearching ? 'Searching...' : 'Search conversations'}
           >
-            {isSearching ? '⏳' : '🔍'}
+            <span aria-hidden="true">{isSearching ? '⏳' : '🔍'}</span>
           </button>
         </div>
 
@@ -289,9 +350,9 @@ export function ConversationSidebar({
           />
         )}
 
-        <div className="conversations-list">
+        <div className="conversations-list" role="list" aria-label="Conversation history">
           {conversations.length === 0 ? (
-            <div className="empty-conversations">
+            <div className="empty-conversations" role="status">
               <p>No conversations yet</p>
               <p className="empty-hint">Click "New" to start</p>
             </div>
@@ -302,6 +363,8 @@ export function ConversationSidebar({
                 className={`conversation-item ${
                   conversation.id === currentConversationId ? 'active' : ''
                 }`}
+                role="listitem"
+                aria-current={conversation.id === currentConversationId ? 'page' : undefined}
               >
                 {editingId === conversation.id ? (
                   <div className="conversation-edit">
@@ -342,27 +405,41 @@ export function ConversationSidebar({
                       <div className="conversation-title">{conversation.title}</div>
                       <div className="conversation-date">{formatDate(conversation.created_at)}</div>
                     </div>
-                    <div className="conversation-actions">
+                    <div className="conversation-actions" role="group" aria-label="Conversation actions">
                       <button
                         onClick={() => handleRename(conversation)}
                         className="conversation-action-btn"
-                        title="Rename"
+                        aria-label={`Rename conversation ${conversation.title}`}
                       >
-                        ✏️
+                        <span aria-hidden="true">✏️</span>
+                      </button>
+                      <button
+                        onClick={() => handleShare(conversation)}
+                        className="conversation-action-btn"
+                        aria-label={`Share conversation ${conversation.title}`}
+                      >
+                        <span aria-hidden="true">🔗</span>
+                      </button>
+                      <button
+                        onClick={() => handleExportLink(conversation)}
+                        className="conversation-action-btn"
+                        aria-label={`Export encrypted link for ${conversation.title}`}
+                      >
+                        <span aria-hidden="true">🔐</span>
                       </button>
                       <button
                         onClick={() => handleExport(conversation)}
                         className="conversation-action-btn"
-                        title="Export"
+                        aria-label={`Export conversation ${conversation.title}`}
                       >
-                        💾
+                        <span aria-hidden="true">💾</span>
                       </button>
                       <button
                         onClick={() => handleDelete(conversation)}
                         className="conversation-action-btn delete-btn"
-                        title="Delete"
+                        aria-label={`Delete conversation ${conversation.title}`}
                       >
-                        🗑️
+                        <span aria-hidden="true">🗑️</span>
                       </button>
                     </div>
                   </>
@@ -373,17 +450,84 @@ export function ConversationSidebar({
         </div>
 
         <div className="sidebar-footer">
-          <button className="export-all-btn" onClick={handleExportAll}>
-            📦 Export All
-          </button>
-          <div className="sidebar-stats">
+          <div className="sidebar-footer-buttons">
+            <button
+              className="export-all-btn"
+              onClick={handleExportAll}
+              aria-label="Export all conversations"
+            >
+              <span aria-hidden="true">📦</span> Export All
+            </button>
+            <button
+              className="backup-btn"
+              onClick={() => setShowBackupDialog(true)}
+              aria-label="Encrypted backups"
+            >
+              <span aria-hidden="true">🔐</span> Backup
+            </button>
+            <button
+              className="theme-btn"
+              onClick={() => setShowThemeDialog(true)}
+              aria-label="Themes and appearance settings"
+            >
+              <span aria-hidden="true">🎨</span> Theme
+            </button>
+          </div>
+          <div className="sidebar-stats" role="status" aria-live="polite">
             {conversations.length} {conversations.length === 1 ? 'conversation' : 'conversations'}
           </div>
         </div>
-      </div>
+      </nav>
 
       {/* Overlay for mobile */}
       {isOpen && <div className="sidebar-overlay" onClick={onToggle} />}
+
+      {/* Import Dialog */}
+      <ImportDialog
+        isOpen={showImportDialog}
+        onClose={() => setShowImportDialog(false)}
+        onImportComplete={handleImportComplete}
+      />
+
+      {/* Backup Dialog */}
+      <BackupDialog
+        isOpen={showBackupDialog}
+        onClose={() => setShowBackupDialog(false)}
+      />
+
+      {/* Theme Dialog */}
+      <ThemeDialog
+        isOpen={showThemeDialog}
+        onClose={() => setShowThemeDialog(false)}
+      />
+
+      {/* Share Dialog */}
+      {shareConversationId && (
+        <ShareDialog
+          isOpen={showShareDialog}
+          onClose={() => {
+            setShowShareDialog(false);
+            setShareConversationId(null);
+            setShareConversationTitle('');
+          }}
+          conversationId={shareConversationId}
+          conversationTitle={shareConversationTitle}
+        />
+      )}
+
+      {/* Export Link Dialog */}
+      {exportLinkConversationId && (
+        <ExportLinkDialog
+          isOpen={showExportLinkDialog}
+          onClose={() => {
+            setShowExportLinkDialog(false);
+            setExportLinkConversationId(null);
+            setExportLinkConversationTitle('');
+          }}
+          conversationId={exportLinkConversationId}
+          conversationTitle={exportLinkConversationTitle}
+        />
+      )}
     </>
   );
 }
