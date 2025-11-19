@@ -52,7 +52,7 @@ SML Guardian is a demonstration of "Shielded Machine Learning" principles - main
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/caseymrobbins/personal_ai
 cd personal_ai
 
 # Install dependencies
