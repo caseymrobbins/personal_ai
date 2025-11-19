@@ -182,8 +182,8 @@ class UserModelService {
     // Check if profile exists
     const existing = dbService.query<{
       user_id: string;
-      display_name: string | null;
-      communication_style: string | null;
+      display_name?: string | null;
+      communication_style?: string | null;
       created_at: number;
       last_updated_at: number;
     }>(
@@ -222,8 +222,7 @@ class UserModelService {
 
       dbService.exec(
         `INSERT INTO user_profiles (user_id, created_at, last_updated_at)
-         VALUES (?, ?, ?)`,
-        [userId, this.userProfile.createdAt, this.userProfile.lastUpdatedAt]
+         VALUES ('${userId}', ${this.userProfile.createdAt}, ${this.userProfile.lastUpdatedAt})`
       );
 
       console.log('[UserModel] 👤 New user profile created:', userId);
@@ -344,17 +343,7 @@ class UserModelService {
     dbService.exec(
       `INSERT OR REPLACE INTO user_preferences
        (id, user_id, key, value, category, confidence, learned_from, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        id,
-        this.userId,
-        key,
-        String(value),
-        category,
-        preference.confidence,
-        learnedFrom ? JSON.stringify(learnedFrom) : null,
-        preference.updatedAt,
-      ]
+       VALUES ('${id}', '${this.userId}', '${key}', '${String(value)}', '${category}', ${preference.confidence}, '${learnedFrom ? JSON.stringify(learnedFrom) : ''}', ${preference.updatedAt})`
     );
 
     console.log(
@@ -395,16 +384,7 @@ class UserModelService {
     dbService.exec(
       `INSERT OR REPLACE INTO user_interests
        (id, user_id, topic, confidence, mentions, context, last_mentioned_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        id,
-        this.userId,
-        topic,
-        interest.confidence,
-        interest.mentions,
-        context || null,
-        interest.lastMentionedAt,
-      ]
+       VALUES ('${id}', '${this.userId}', '${topic}', ${interest.confidence}, ${interest.mentions}, '${context || ''}', ${interest.lastMentionedAt})`
     );
 
     console.log(
@@ -444,15 +424,7 @@ class UserModelService {
     dbService.exec(
       `INSERT OR REPLACE INTO user_capabilities
        (id, user_id, skill, proficiency, evidence, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        id,
-        this.userId,
-        skill,
-        capability.proficiency,
-        JSON.stringify(capability.evidence),
-        capability.updatedAt,
-      ]
+       VALUES ('${id}', '${this.userId}', '${skill}', ${capability.proficiency}, '${JSON.stringify(capability.evidence)}', ${capability.updatedAt})`
     );
 
     console.log(
@@ -492,8 +464,7 @@ class UserModelService {
     this.userProfile.lastUpdatedAt = Date.now();
 
     dbService.exec(
-      `UPDATE user_profiles SET display_name = ?, last_updated_at = ? WHERE user_id = ?`,
-      [displayName, this.userProfile.lastUpdatedAt, this.userId]
+      `UPDATE user_profiles SET display_name = '${displayName}', last_updated_at = ${this.userProfile.lastUpdatedAt} WHERE user_id = '${this.userId}'`
     );
 
     console.log(`[UserModel] 👤 Display name updated: ${displayName}`);
@@ -509,8 +480,7 @@ class UserModelService {
     this.userProfile.lastUpdatedAt = Date.now();
 
     dbService.exec(
-      `UPDATE user_profiles SET communication_style = ?, last_updated_at = ? WHERE user_id = ?`,
-      [style, this.userProfile.lastUpdatedAt, this.userId]
+      `UPDATE user_profiles SET communication_style = '${style}', last_updated_at = ${this.userProfile.lastUpdatedAt} WHERE user_id = '${this.userId}'`
     );
 
     console.log(`[UserModel] 💬 Communication style updated: ${style}`);
@@ -591,10 +561,7 @@ class UserModelService {
     // Remove source
     this.userProfile!.interests.delete(source);
 
-    dbService.exec(`DELETE FROM user_interests WHERE topic = ? AND user_id = ?`, [
-      source,
-      this.userId,
-    ]);
+    dbService.exec(`DELETE FROM user_interests WHERE topic = '${source}' AND user_id = '${this.userId}'`);
 
     console.log(`[UserModel] 🔀 Merged interests: ${source} → ${target}`);
   }
@@ -604,13 +571,9 @@ class UserModelService {
    */
   clear(): void {
     this.userProfile = null;
-    dbService.exec(`DELETE FROM user_preferences WHERE user_id = ?`, [
-      this.userId,
-    ]);
-    dbService.exec(`DELETE FROM user_interests WHERE user_id = ?`, [this.userId]);
-    dbService.exec(`DELETE FROM user_capabilities WHERE user_id = ?`, [
-      this.userId,
-    ]);
+    dbService.exec(`DELETE FROM user_preferences WHERE user_id = '${this.userId}'`);
+    dbService.exec(`DELETE FROM user_interests WHERE user_id = '${this.userId}'`);
+    dbService.exec(`DELETE FROM user_capabilities WHERE user_id = '${this.userId}'`);
     console.log('[UserModel] ⚠️ User data cleared');
   }
 

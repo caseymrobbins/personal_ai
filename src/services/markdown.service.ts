@@ -154,7 +154,7 @@ class MarkdownService {
    */
   private processMath(content: string): string {
     // Process display math ($$...$$) first
-    content = content.replace(/\$\$([\s\S]+?)\$\$/g, (match, tex) => {
+    content = content.replace(/\$\$([\s\S]+?)\$\$/g, (_match, tex) => {
       try {
         return katex.renderToString(tex.trim(), {
           displayMode: true,
@@ -168,7 +168,7 @@ class MarkdownService {
     });
 
     // Process inline math ($...$)
-    content = content.replace(/\$([^\$\n]+?)\$/g, (match, tex) => {
+    content = content.replace(/\$([^\$\n]+?)\$/g, (_match, tex) => {
       try {
         return katex.renderToString(tex.trim(), {
           displayMode: false,

@@ -255,8 +255,8 @@ const GoalNode: React.FC<GoalNodeProps> = ({
             style={{
               marginRight: '8px',
               fontSize: '14px',
-              title: 'Deadline approaching',
             }}
+            title="Deadline approaching"
           >
             ⏰
           </span>
@@ -308,9 +308,6 @@ const GoalNode: React.FC<GoalNodeProps> = ({
 export const GoalTree: React.FC<GoalTreeProps> = ({
   goals,
   onGoalSelect,
-  onGoalUpdate,
-  expandedGoals,
-  onExpandToggle,
 }) => {
   // Build map for quick lookup
   const goalMap = useMemo(() => {
@@ -427,7 +424,7 @@ export const GoalTree: React.FC<GoalTreeProps> = ({
               goal={goal}
               allGoals={goalMap}
               onGoalClick={onGoalSelect}
-              onGoalContextMenu={(goalId, event) => {
+              onGoalContextMenu={(_goalId, event) => {
                 event.preventDefault();
                 // Context menu would be handled by parent
               }}

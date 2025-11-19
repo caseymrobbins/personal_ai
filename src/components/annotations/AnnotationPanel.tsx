@@ -24,7 +24,7 @@ export interface AnnotationPanelProps {
 }
 
 export function AnnotationPanel({
-  conversationId,
+  conversationId: _conversationId,
   annotations,
   isOpen,
   onClose,
@@ -36,7 +36,7 @@ export function AnnotationPanel({
   const [filterType, setFilterType] = useState<AnnotationType | 'all'>('all');
   const [filterStatus, setFilterStatus] = useState<AnnotationStatus | 'all'>('all');
   const [replyText, setReplyText] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [_editingId, _setEditingId] = useState<string | null>(null);
 
   // Filter annotations based on search and filter criteria
   const filteredAnnotations = annotations.filter((annotation) => {
@@ -102,15 +102,15 @@ export function AnnotationPanel({
     }
   };
 
-  const getTypeColor = (type: AnnotationType): string => {
-    const colors: Record<AnnotationType, string> = {
-      comment: '#FFE5B4',
-      highlight: '#B4D7FF',
-      question: '#D7FFB4',
-      flag: '#FFB4B4',
-    };
-    return colors[type];
-  };
+  // const getTypeColor = (type: AnnotationType): string => {
+  //   const colors: Record<AnnotationType, string> = {
+  //     comment: '#FFE5B4',
+  //     highlight: '#B4D7FF',
+  //     question: '#D7FFB4',
+  //     flag: '#FFB4B4',
+  //   };
+  //   return colors[type];
+  // };
 
   const getTypeIcon = (type: AnnotationType): string => {
     const icons: Record<AnnotationType, string> = {

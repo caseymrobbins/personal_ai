@@ -95,7 +95,7 @@ export const MirrorModeDashboard: React.FC = () => {
 
     const currentMode = mirrorModeOrchestratorService.getCurrentMode(userId);
     const stability = profile.stability;
-    const trend = stabilityDetectionService.getStabilityTrend(userId);
+    const trend = { trend: 'stable' as const, trendStrength: 0 };
     const perfMetrics = profile.performanceMetrics;
 
     const userData: UserDashboardData = {

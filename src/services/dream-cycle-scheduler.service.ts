@@ -14,7 +14,8 @@
 
 export interface DreamCycleConfig {
   enabled: boolean;
-  scheduleType: 'hourly' | 'daily' | 'weekly' | 'custom';
+  scheduleType: 'idle-time' | 'hourly' | 'daily' | 'weekly' | 'custom';
+  idleThresholdMinutes?: number; // For idle-time schedule (default: 60 minutes)
   timeOfDay?: string; // HH:MM format for daily cycles
   dayOfWeek?: number; // 0-6 for weekly cycles
   intervalMinutes?: number; // For custom schedules
@@ -79,8 +80,10 @@ class DreamCycleSchedulerService {
   private currentPhase: CyclePhase | null = null;
   private isSchedulerRunning = false;
   private schedulerIntervalId: NodeJS.Timeout | null = null;
+  private idleCheckIntervalId: NodeJS.Timeout | null = null;
   private nextScheduledTime: Date | null = null;
   private lastCycleTime: Date | null = null;
+  private lastInteractionTime: Date = new Date();
   private interactionsSinceLastCycle = 0;
   private metrics: DreamCycleMetrics = {
     totalCyclesScheduled: 0,
@@ -107,8 +110,8 @@ class DreamCycleSchedulerService {
   initialize(config?: Partial<DreamCycleConfig>): void {
     this.config = {
       enabled: true,
-      scheduleType: 'daily',
-      timeOfDay: '02:00', // 2 AM default
+      scheduleType: 'idle-time',
+      idleThresholdMinutes: 60, // 60 minutes idle before dream cycle
       maxCycleDurationMs: 60000, // 60 seconds
       minInteractionsSinceLastCycle: 10,
       enableAutoTrigger: true,
@@ -117,6 +120,9 @@ class DreamCycleSchedulerService {
 
     console.log('🌙 Dream Cycle Scheduler initialized');
     console.log(`   Schedule Type: ${this.config.scheduleType}`);
+    if (this.config.scheduleType === 'idle-time') {
+      console.log(`   Idle Threshold: ${this.config.idleThresholdMinutes} minutes`);
+    }
     console.log(`   Auto-trigger: ${this.config.enableAutoTrigger}`);
   }
 
@@ -130,7 +136,15 @@ class DreamCycleSchedulerService {
     }
 
     this.isSchedulerRunning = true;
-    this.scheduleNextCycle();
+
+    if (this.config.scheduleType === 'idle-time') {
+      // Start idle-time monitoring
+      this.startIdleTimeMonitoring();
+    } else {
+      // Use time-based scheduling
+      this.scheduleNextCycle();
+    }
+
     console.log('✓ Dream Cycle Scheduler started');
   }
 
@@ -141,6 +155,10 @@ class DreamCycleSchedulerService {
     if (this.schedulerIntervalId) {
       clearInterval(this.schedulerIntervalId);
       this.schedulerIntervalId = null;
+    }
+    if (this.idleCheckIntervalId) {
+      clearInterval(this.idleCheckIntervalId);
+      this.idleCheckIntervalId = null;
     }
     this.isSchedulerRunning = false;
     console.log('✓ Dream Cycle Scheduler stopped');
@@ -195,7 +213,57 @@ class DreamCycleSchedulerService {
   }
 
   /**
-   * Schedule the next dream cycle
+   * Start idle-time monitoring - checks if system has been idle and triggers cycle
+   */
+  private startIdleTimeMonitoring(): void {
+    if (!this.config.enabled || !this.isSchedulerRunning) {
+      return;
+    }
+
+    const idleThresholdMs = (this.config.idleThresholdMinutes || 60) * 60 * 1000;
+
+    console.log(`⏰ Idle-time monitoring started (threshold: ${this.config.idleThresholdMinutes} minutes)`);
+
+    // Check every 30 seconds if idle threshold has been reached
+    this.idleCheckIntervalId = setInterval(() => {
+      const now = new Date();
+      const timeSinceLastInteraction = now.getTime() - this.lastInteractionTime.getTime();
+
+      if (timeSinceLastInteraction >= idleThresholdMs) {
+        console.log(`😴 System idle for ${this.config.idleThresholdMinutes} minutes, triggering dream cycle`);
+        this.triggerDreamCycle('idle-triggered');
+        // Reset the interaction timer after cycle trigger
+        this.lastInteractionTime = new Date();
+      }
+    }, 30000); // Check every 30 seconds
+  }
+
+  /**
+   * Record user interaction to reset idle timer
+   */
+  recordUserInteraction(): void {
+    this.lastInteractionTime = new Date();
+    this.interactionsSinceLastCycle++;
+
+    if (this.config.scheduleType === 'idle-time') {
+      const idleThresholdMs = (this.config.idleThresholdMinutes || 60) * 60 * 1000;
+      const timeSinceLastInteraction = new Date().getTime() - this.lastInteractionTime.getTime();
+      console.log(
+        `👤 User interaction recorded (idle timer reset: ${Math.round(idleThresholdMs / 60000)} minutes until next dream cycle)`
+      );
+    }
+  }
+
+  /**
+   * Get current idle time in minutes
+   */
+  getCurrentIdleTimeMinutes(): number {
+    const now = new Date();
+    return Math.round((now.getTime() - this.lastInteractionTime.getTime()) / 60000);
+  }
+
+  /**
+   * Schedule the next dream cycle (for time-based scheduling)
    */
   private scheduleNextCycle(): void {
     if (!this.config.enabled || !this.isSchedulerRunning) {
@@ -225,10 +293,10 @@ class DreamCycleSchedulerService {
   }
 
   /**
-   * Trigger a dream cycle (scheduled or manual)
+   * Trigger a dream cycle (scheduled, idle-triggered, manual, or auto-trigger)
    */
   async triggerDreamCycle(
-    triggerType: 'scheduled' | 'manual' | 'auto-trigger' = 'manual'
+    triggerType: 'scheduled' | 'idle-triggered' | 'manual' | 'auto-trigger' = 'manual'
   ): Promise<DreamCycleSchedule | null> {
     if (this.currentSchedule && this.currentSchedule.status === 'running') {
       console.warn('⚠️ Dream cycle already running');
@@ -512,6 +580,7 @@ class DreamCycleSchedulerService {
     this.currentPhase = null;
     this.nextScheduledTime = null;
     this.lastCycleTime = null;
+    this.lastInteractionTime = new Date();
     this.interactionsSinceLastCycle = 0;
     this.metrics = {
       totalCyclesScheduled: 0,

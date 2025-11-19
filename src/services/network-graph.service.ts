@@ -9,7 +9,7 @@
  * - Tracks conversation metadata for visualization
  */
 
-import { dbService, type Conversation, type ChatMessage } from './db.service';
+import { dbService, type Conversation } from './db.service';
 
 export interface GraphNode {
   id: string;

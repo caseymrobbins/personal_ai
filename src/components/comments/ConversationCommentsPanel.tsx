@@ -99,16 +99,16 @@ export function ConversationCommentsPanel({
     }
   };
 
-  const handleAddTag = (commentId: string, tag: string) => {
-    if (!tag.trim()) return;
-
-    try {
-      conversationCommentService.addTags(commentId, [tag.trim()]);
-      loadComments();
-    } catch (err) {
-      console.error('Error adding tag:', err);
-    }
-  };
+  // const handleAddTag = (commentId: string, tag: string) => {
+  //   if (!tag.trim()) return;
+  //
+  //   try {
+  //     conversationCommentService.addTags(commentId, [tag.trim()]);
+  //     loadComments();
+  //   } catch (err) {
+  //     console.error('Error adding tag:', err);
+  //   }
+  // };
 
   const handleRemoveTag = (commentId: string, tag: string) => {
     try {
@@ -268,9 +268,9 @@ export function ConversationCommentsPanel({
                     <div className="comment-content">{comment.content}</div>
 
                     {/* Tags */}
-                    {(comment.tags || []).length > 0 && (
+                    {(comment.tags && comment.tags.length > 0) && (
                       <div className="comment-tags">
-                        {comment.tags.map((tag) => (
+                        {comment.tags && comment.tags.map((tag) => (
                           <span
                             key={tag}
                             className="comment-tag"

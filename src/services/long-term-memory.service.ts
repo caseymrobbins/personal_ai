@@ -42,7 +42,7 @@ export interface MemorySearchResult {
 class LongTermMemoryService {
   private memoryCache: Map<string, EpisodicMemory> = new Map();
   private readonly minConfidenceForStorage = 0.5;
-  private readonly maxCacheSize = 1000;
+  private readonly _maxCacheSize = 1000;
 
   /**
    * Initialize long-term memory database
@@ -50,7 +50,7 @@ class LongTermMemoryService {
   async initialize(): Promise<void> {
     try {
       // Create tables for episodic memory
-      dbService.exec(`
+      void dbService.exec(`
         CREATE TABLE IF NOT EXISTS episodic_memory (
           id TEXT PRIMARY KEY,
           content TEXT NOT NULL,
@@ -67,13 +67,13 @@ class LongTermMemoryService {
       `);
 
       // Create index for temporal queries
-      dbService.exec(`
+      void dbService.exec(`
         CREATE INDEX IF NOT EXISTS idx_episodic_timestamp
         ON episodic_memory(timestamp DESC)
       `);
 
       // Create index for confidence queries
-      dbService.exec(`
+      void dbService.exec(`
         CREATE INDEX IF NOT EXISTS idx_episodic_confidence
         ON episodic_memory(confidence DESC)
       `);
@@ -120,7 +120,7 @@ class LongTermMemoryService {
         ? embeddingsService.serializeEmbedding(embedding)
         : null;
 
-      dbService.exec(
+      void dbService.exec(
         `INSERT INTO episodic_memory
          (id, content, embedding, timestamp, confidence, source_task_id, related_memories)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -260,7 +260,7 @@ class LongTermMemoryService {
   /**
    * Get recent memories
    */
-  async getRecentMemories(limit: number = 20): Promise<EpisodicMemory[]> {
+  async getRecentMemories(_limit: number = 20): Promise<EpisodicMemory[]> {
     const now = Date.now();
     const oneDayAgo = now - 24 * 60 * 60 * 1000;
     return this.getMemoriesByTimeRange(oneDayAgo, now);
@@ -355,7 +355,7 @@ class LongTermMemoryService {
       memory.retrievalCount += 1;
 
       // Update in database
-      dbService.exec(
+      void dbService.exec(
         `UPDATE episodic_memory SET retrieval_count = retrieval_count + 1 WHERE id = ?`,
         [memoryId]
       );

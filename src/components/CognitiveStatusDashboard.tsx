@@ -18,7 +18,7 @@ import { longTermMemoryService } from '../services/long-term-memory.service';
 import { declarativeKBService } from '../services/declarative-kb.service';
 import { cognitiveSchedulerService } from '../services/cognitive-scheduler.service';
 import { goalManagementService } from '../services/goal-management.service';
-import { userModelService } from '../services/user-model.service';
+// import { userModelService } from '../services/user-model.service';
 import { entityExtractorService } from '../services/entity-extractor.service';
 import { goalEvaluationTriggerService } from '../services/goal-evaluation-trigger.service';
 
@@ -70,7 +70,7 @@ const CognitiveStatusDashboard: React.FC = () => {
     queuedTasks: 0,
     insightsGenerated: 0,
   });
-  const [refreshInterval, setRefreshInterval] = useState(2000);
+  const [refreshInterval, _setRefreshInterval] = useState(2000);
   const [isAutoRefresh, setIsAutoRefresh] = useState(true);
 
   // Fetch metrics
@@ -86,9 +86,9 @@ const CognitiveStatusDashboard: React.FC = () => {
       const evalStats = goalEvaluationTriggerService.getStats();
 
       setMetrics({
-        cognitiveLoopState: loopStatus.state,
-        lastCycleTime: loopStatus.lastCycleTime,
-        cyclesExecuted: loopStatus.cycleCount,
+        cognitiveLoopState: (loopStatus as any)?.state || 'idle',
+        lastCycleTime: (loopStatus as any)?.lastCycleTime || null,
+        cyclesExecuted: (loopStatus as any)?.cycleCount || 0,
         workingMemoryItems: wmStats.totalItems,
         activeTasks: wmStats.activeTasks,
         longTermMemories: ltmStats.totalMemories,
@@ -281,7 +281,6 @@ const StatusCard: React.FC<{
   <div
     style={{
       padding: '16px',
-      backgroundColor: 'white',
       borderRadius: '8px',
       border: `1px solid ${color}33`,
       backgroundColor: `${color}08`,
@@ -423,7 +422,7 @@ const GoalsTab: React.FC = () => {
 };
 
 // Memory Tab
-const MemoryTab: React.FC<{ metrics: CognitiveMetrics }> = ({ metrics }) => {
+const MemoryTab: React.FC<{ metrics: CognitiveMetrics }> = () => {
   const wmStats = workingMemoryService.getStats();
   const ltmStats = longTermMemoryService.getStats();
 
@@ -500,7 +499,7 @@ const MemoryTab: React.FC<{ metrics: CognitiveMetrics }> = ({ metrics }) => {
 };
 
 // Entities Tab
-const EntitiesTab: React.FC<{ metrics: CognitiveMetrics }> = ({ metrics }) => {
+const EntitiesTab: React.FC<{ metrics: CognitiveMetrics }> = () => {
   const topEntities = entityExtractorService.getTopEntities(5);
   const stats = entityExtractorService.getStats();
 
@@ -569,7 +568,7 @@ const EntitiesTab: React.FC<{ metrics: CognitiveMetrics }> = ({ metrics }) => {
 };
 
 // Tasks Tab
-const TasksTab: React.FC<{ metrics: CognitiveMetrics }> = ({ metrics }) => {
+const TasksTab: React.FC<{ metrics: CognitiveMetrics }> = () => {
   const queuedTasks = cognitiveSchedulerService.getTasks('queued');
   const runningTasks = cognitiveSchedulerService.getTasks('running');
   const stats = cognitiveSchedulerService.getStats();
