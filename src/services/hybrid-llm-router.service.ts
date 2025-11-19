@@ -75,7 +75,9 @@ const COMPLEXITY_THRESHOLDS = {
 };
 
 // Keywords and patterns that indicate query complexity
-const COMPLEXITY_KEYWORDS = {
+// Unused currently but kept for future semantic analysis enhancements
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _COMPLEXITY_KEYWORDS = {
   highComplexity: [
     'why', 'how could', 'what if', 'imagine', 'evaluate', 'analyze', 'compare contrast',
     'debate', 'philosophy', 'implications', 'nuanced', 'tradeoff', 'synthesis',
@@ -265,7 +267,8 @@ class HybridLLMRouterService {
 
   // ============= PRIVATE HELPER METHODS =============
 
-  private calculateSemanticDepth(query: string, embedding?: number[]): number {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private calculateSemanticDepth(query: string, _embedding?: number[]): number {
     // Higher for abstract, philosophical, technical questions
     let depth = 0;
 
@@ -524,6 +527,7 @@ class HybridLLMRouterService {
   private generateRoutingReason(
     complexity: QueryComplexity,
     adapter: AdapterType,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     preferences?: any
   ): string {
     let reason = `Complexity score: ${(complexity.score * 100).toFixed(1)}%. `;

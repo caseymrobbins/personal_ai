@@ -14,7 +14,6 @@
  */
 
 import { Argument, Viewpoint } from './viewpoint-analyzer.service';
-import { embeddingsService } from './embeddings.service';
 
 export interface CounterArgument extends Argument {
   targetStatement: string; // Which statement this counters
@@ -409,10 +408,10 @@ class StrongManningService {
    */
   private async findEdgeCases(
     position: string,
-    arguments_: Argument[]
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _arguments_: Argument[]
   ): Promise<EdgeCase[]> {
     const edgeCases: EdgeCase[] = [];
-    let edgeCounter = 0;
 
     // Common edge case patterns
     const edgeCasePatterns = [
@@ -627,6 +626,7 @@ class StrongManningService {
    */
   private calculateFairnessScore(
     counterArguments: CounterArgument[],
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _assumptions: UnexaminedAssumption[]
   ): number {
     // Fairness is based on:

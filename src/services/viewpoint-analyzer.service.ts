@@ -14,7 +14,6 @@
  */
 
 import { embeddingsService } from './embeddings.service';
-import { hybridLLMRouter } from './hybrid-llm-router.service';
 
 export type ViewpointStance = 'user' | 'opposing' | 'neutral' | 'synthesis';
 
@@ -217,6 +216,7 @@ class ViewpointAnalyzerService {
   private async generateOpposingViewpoints(
     topic: string,
     userPosition: Viewpoint,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _conversationHistory: Array<{ role: string; content: string }>
   ): Promise<Viewpoint[]> {
     const domains = [
@@ -458,6 +458,7 @@ class ViewpointAnalyzerService {
    */
   private async extractArgumentsFromText(
     text: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _source: string
   ): Promise<Argument[]> {
     const arguments_: Argument[] = [];

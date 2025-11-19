@@ -475,7 +475,7 @@ describe('End-to-End Mirror Mode Integration', () => {
   });
 
   test('should handle mode switching correctly', async () => {
-    let mode = mirrorModeOrchestratorService.getCurrentMode(userId);
+    const mode = mirrorModeOrchestratorService.getCurrentMode(userId);
     expect(mode).toBeDefined();
 
     // Simulate stress message

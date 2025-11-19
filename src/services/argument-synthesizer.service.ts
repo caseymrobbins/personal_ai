@@ -16,12 +16,10 @@
 import {
   Viewpoint,
   ViewpointAnalysis,
-  CommonGround,
   KeyTension,
 } from './viewpoint-analyzer.service';
 import {
   StrongMannedAnalysis,
-  CounterArgument,
 } from './strong-manning.service';
 
 export interface TradeOff {
@@ -233,7 +231,7 @@ class ArgumentSynthesizerService {
     }
 
     // Add what strong-manning reveals
-    for (const [_, strongMan] of strongMannedAnalyses) {
+    for (const strongMan of strongMannedAnalyses.values()) {
       if (strongMan.counterArguments.length > 0) {
         const topCounter = strongMan.counterArguments[0];
         parts.push(
@@ -257,6 +255,7 @@ class ArgumentSynthesizerService {
    */
   private identifyTradeOffs(
     viewpointAnalysis: ViewpointAnalysis,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _strongMannedAnalyses: Map<string, StrongMannedAnalysis>
   ): TradeOff[] {
     const tradeOffs: TradeOff[] = [];
@@ -458,8 +457,10 @@ class ArgumentSynthesizerService {
    */
   private generateRecommendedApproach(
     viewpointAnalysis: ViewpointAnalysis,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _perspectives: SynthesizedPerspective[],
-    contextualRecommendations: Array<{
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _contextualRecommendations: Array<{
       context: string;
       recommendation: string;
       reasoning: string;
@@ -496,6 +497,7 @@ class ArgumentSynthesizerService {
    */
   private calculateSynthesisQuality(
     viewpointAnalysis: ViewpointAnalysis,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _perspectives: SynthesizedPerspective[],
     tradeOffs: TradeOff[]
   ): number {
@@ -524,6 +526,7 @@ class ArgumentSynthesizerService {
    */
   private calculateRepresentativeness(
     viewpointAnalysis: ViewpointAnalysis,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _strongMannedAnalyses: Map<string, StrongMannedAnalysis>
   ): number {
     let representativeness = 0.5;
@@ -612,6 +615,7 @@ class ArgumentSynthesizerService {
   /**
    * Generate context for trade-off
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private generateContextForTradeOff(_tension: KeyTension): string {
     return 'The specific context, constraints, and priorities';
   }

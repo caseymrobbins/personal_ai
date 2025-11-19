@@ -399,7 +399,7 @@ class ConversationEntityIntegrationService {
    */
   private async getOrCreateAdapterEntity(adapterName: string): Promise<string | null> {
     try {
-      let entity = declarativeKBService.search(adapterName, 1);
+      const entity = declarativeKBService.search(adapterName, 1);
 
       if (entity.length === 0) {
         const newEntity = declarativeKBService.addEntity(

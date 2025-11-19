@@ -458,7 +458,7 @@ export function ChatContainer() {
         }
 
         // STEP 4: Anonymization for external adapters
-        let scrubMappings: ScrubMapping[] = [];
+        const scrubMappings: ScrubMapping[] = [];
         let messagesToSend = history.map(msg => ({
           role: msg.role as 'system' | 'user' | 'assistant',
           content: msg.content,
