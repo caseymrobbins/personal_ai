@@ -79,6 +79,29 @@ CREATE INDEX IF NOT EXISTS idx_governance_timestamp
   ON governance_log(timestamp DESC);
 
 -- ============================================================================
+-- THOUGHT_STREAMS TABLE
+-- ============================================================================
+-- Stores AI thinking process and code analysis for messages
+-- Enables transparent AI reasoning and continuous analysis stream
+CREATE TABLE IF NOT EXISTS thought_streams (
+  id TEXT PRIMARY KEY,                -- UUID (e.g., 'thought-123e4567-e89b-12d3')
+  message_id TEXT NOT NULL,           -- Foreign key to chat_messages
+  thought_type TEXT NOT NULL,         -- 'reasoning' | 'code_analysis' | 'planning' | 'reflection'
+  content TEXT NOT NULL,              -- The thought content
+  metadata TEXT,                      -- JSON: Additional metadata (code location, analysis results, etc.)
+  sequence_order INTEGER NOT NULL,    -- Order within the message's thought stream
+  timestamp INTEGER NOT NULL,         -- UNIX timestamp (milliseconds)
+
+  FOREIGN KEY (message_id) REFERENCES chat_messages(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_thought_streams_message
+  ON thought_streams(message_id, sequence_order ASC);
+
+CREATE INDEX IF NOT EXISTS idx_thought_streams_timestamp
+  ON thought_streams(timestamp DESC);
+
+-- ============================================================================
 -- USER_PREFERENCES TABLE
 -- ============================================================================
 -- Stores user preferences and configuration
@@ -96,7 +119,9 @@ INSERT OR IGNORE INTO user_preferences (key, value) VALUES
   ('sensitive_keywords', '[]'),                       -- Step 2: User-defined PII terms
   ('enable_socratic_mode', 'false'),                  -- Step 4: Socratic co-pilot toggle
   ('ari_threshold', '0.65'),                          -- Step 4: ARI threshold for Socratic trigger
-  ('theme', 'dark');                                  -- UI preference
+  ('theme', 'dark'),                                  -- UI preference
+  ('show_thought_stream', 'true'),                    -- Show AI thinking process
+  ('enable_code_analysis', 'true');                   -- Enable automatic code analysis
 
 -- ============================================================================
 -- SCHEMA VERSION

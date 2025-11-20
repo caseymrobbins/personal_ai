@@ -96,6 +96,7 @@ export function validateSchema(): { valid: boolean; missing: string[] } {
   const requiredTables = [
     'conversations',
     'chat_messages',
+    'thought_streams',
     'api_keys',
     'governance_log',
     'user_preferences'
