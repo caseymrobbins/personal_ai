@@ -377,7 +377,7 @@ class StabilityDetectionService {
 
     // Balancer Mode: User needs support
     if (overallScore < 0.55 || emotionalStability < 0.45 || groundingLevel < 0.4 || stressLevel > 0.6) {
-      let reason = 'Balancer mode activated due to: ';
+      const reason = 'Balancer mode activated due to: ';
       const reasons: string[] = [];
 
       if (emotionalStability < 0.45) reasons.push('emotional instability');

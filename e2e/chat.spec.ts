@@ -88,7 +88,7 @@ test.describe('Chat Application - Complete Conversation Flow', () => {
   test('should navigate between pages', async ({ page }) => {
     // Look for navigation buttons
     const settingsButton = page.locator('button:has-text("Settings"), [class*="settings"]').first();
-    const analyticsButton = page.locator('button:has-text("Analytics"), [class*="analytics"]').first();
+    const _analyticsButton = page.locator('button:has-text("Analytics"), [class*="analytics"]').first();
     const chatButton = page.locator('button:has-text("Chat"), [class*="chat-nav"]').first();
 
     // If settings button exists, click it
@@ -206,7 +206,7 @@ test.describe('Chat Application - Responsive Design', () => {
     await page.waitForLoadState('networkidle');
 
     // Check for mobile-friendly navigation
-    const hamburgerMenu = page.locator('button[class*="menu"], button[class*="hamburger"]').first();
+    const _hamburgerMenu = page.locator('button[class*="menu"], button[class*="hamburger"]').first();
     const sidebarVisible = await page.locator('[class*="sidebar"]').isVisible({ timeout: 2000 }).catch(() => false);
 
     // Either hamburger menu or visible sidebar

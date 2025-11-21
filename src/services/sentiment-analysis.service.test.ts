@@ -303,7 +303,7 @@ describe('Sentiment Analysis Service', () => {
       }
 
       const conversationMessages = dbService.getConversationHistory(conversation.id);
-      let distribution = { positive: 0, neutral: 0, negative: 0 };
+      const distribution = { positive: 0, neutral: 0, negative: 0 };
 
       for (const msg of conversationMessages) {
         const sentiment = analyzeSentimentScore(msg.content);
@@ -374,7 +374,7 @@ describe('Sentiment Analysis Service', () => {
 
       const allMessages = dbService.getAllMessages();
       let totalScore = 0;
-      let sentimentCounts = { positive: 0, neutral: 0, negative: 0 };
+      const sentimentCounts = { positive: 0, neutral: 0, negative: 0 };
 
       for (const msg of allMessages) {
         const sentiment = analyzeSentimentScore(msg.content);

@@ -186,7 +186,7 @@ describe('ConversationSidebar', () => {
 
       render(<ConversationSidebar {...defaultProps} onToggle={onToggle} />);
 
-      const toggleButton = screen.getByTitle(/Toggle conversations/i);
+      const toggleButton = screen.getByRole('button', { name: /toggle conversations/i });
       await user.click(toggleButton);
 
       expect(onToggle).toHaveBeenCalledTimes(1);

@@ -190,7 +190,7 @@ class ExportService {
     });
 
     let yPosition = this.PDF_MARGIN;
-    let isFirstPage = true;
+    const isFirstPage = true;
 
     // Add title page
     doc.setFontSize(24);

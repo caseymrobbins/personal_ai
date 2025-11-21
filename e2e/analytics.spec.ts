@@ -8,7 +8,7 @@ test.describe('Analytics Dashboard', () => {
 
   test('should navigate to analytics dashboard', async ({ page }) => {
     // Look for analytics navigation
-    let analyticsLink = page.locator('a:has-text("Analytics"), button:has-text("Analytics")').first();
+    const analyticsLink = page.locator('a:has-text("Analytics"), button:has-text("Analytics")').first();
 
     if (await analyticsLink.isVisible({ timeout: 2000 })) {
       await analyticsLink.click();
@@ -25,7 +25,7 @@ test.describe('Analytics Dashboard', () => {
   });
 
   test('should display analytics charts', async ({ page }) => {
-    let analyticsLink = page.locator('a:has-text("Analytics"), button:has-text("Analytics")').first();
+    const analyticsLink = page.locator('a:has-text("Analytics"), button:has-text("Analytics")').first();
 
     if (await analyticsLink.isVisible({ timeout: 2000 })) {
       await analyticsLink.click();
@@ -42,7 +42,7 @@ test.describe('Analytics Dashboard', () => {
   });
 
   test('should display metrics summary', async ({ page }) => {
-    let analyticsLink = page.locator('a:has-text("Analytics"), button:has-text("Analytics")').first();
+    const analyticsLink = page.locator('a:has-text("Analytics"), button:has-text("Analytics")').first();
 
     if (await analyticsLink.isVisible({ timeout: 2000 })) {
       await analyticsLink.click();
@@ -59,7 +59,7 @@ test.describe('Analytics Dashboard', () => {
   });
 
   test('should filter analytics by date range', async ({ page }) => {
-    let analyticsLink = page.locator('a:has-text("Analytics"), button:has-text("Analytics")').first();
+    const analyticsLink = page.locator('a:has-text("Analytics"), button:has-text("Analytics")').first();
 
     if (await analyticsLink.isVisible({ timeout: 2000 })) {
       await analyticsLink.click();
@@ -85,7 +85,7 @@ test.describe('Analytics Dashboard', () => {
   });
 
   test('should export analytics', async ({ page }) => {
-    let analyticsLink = page.locator('a:has-text("Analytics"), button:has-text("Analytics")').first();
+    const analyticsLink = page.locator('a:has-text("Analytics"), button:has-text("Analytics")').first();
 
     if (await analyticsLink.isVisible({ timeout: 2000 })) {
       await analyticsLink.click();
@@ -114,7 +114,7 @@ test.describe('Analytics - Autonomy Retention Index', () => {
   });
 
   test('should display ARI metrics', async ({ page }) => {
-    let analyticsLink = page.locator('a:has-text("Analytics"), button:has-text("Analytics")').first();
+    const analyticsLink = page.locator('a:has-text("Analytics"), button:has-text("Analytics")').first();
 
     if (await analyticsLink.isVisible({ timeout: 2000 })) {
       await analyticsLink.click();
@@ -132,7 +132,7 @@ test.describe('Analytics - Autonomy Retention Index', () => {
   });
 
   test('should display RDI metrics', async ({ page }) => {
-    let analyticsLink = page.locator('a:has-text("Analytics"), button:has-text("Analytics")').first();
+    const analyticsLink = page.locator('a:has-text("Analytics"), button:has-text("Analytics")').first();
 
     if (await analyticsLink.isVisible({ timeout: 2000 })) {
       await analyticsLink.click();
@@ -157,7 +157,7 @@ test.describe('Analytics - Data Export', () => {
   });
 
   test('should provide export options', async ({ page }) => {
-    let analyticsLink = page.locator('a:has-text("Analytics"), button:has-text("Analytics")').first();
+    const analyticsLink = page.locator('a:has-text("Analytics"), button:has-text("Analytics")').first();
 
     if (await analyticsLink.isVisible({ timeout: 2000 })) {
       await analyticsLink.click();
@@ -180,7 +180,7 @@ test.describe('Analytics - Data Export', () => {
   });
 
   test('should handle export interactions', async ({ page }) => {
-    let analyticsLink = page.locator('a:has-text("Analytics"), button:has-text("Analytics")').first();
+    const analyticsLink = page.locator('a:has-text("Analytics"), button:has-text("Analytics")').first();
 
     if (await analyticsLink.isVisible({ timeout: 2000 })) {
       await analyticsLink.click();
