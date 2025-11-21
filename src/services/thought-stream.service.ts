@@ -46,7 +46,7 @@ class ThoughtStreamService {
       message_id: messageId,
       thought_type: thoughtType,
       content,
-      metadata: metadata ? JSON.stringify(metadata) : null,
+      metadata: metadata ? JSON.stringify(metadata) : undefined,
       sequence_order: sequenceOrder as number,
       timestamp: Date.now()
     };
@@ -236,7 +236,7 @@ class ThoughtStreamService {
       // Perform basic code analysis
       const analysis = this.performCodeAnalysis(code, language);
 
-      if (analysis.issues.length > 0 || analysis.suggestions.length > 0) {
+      if ((analysis.issues?.length || 0) > 0 || (analysis.suggestions?.length || 0) > 0) {
         const analysisContent = this.formatCodeAnalysis(analysis);
 
         await this.addThought(
@@ -355,7 +355,7 @@ class ThoughtStreamService {
       });
     }
 
-    if (analysis.complexity && analysis.complexity.cyclomaticComplexity > 10) {
+    if (analysis.complexity?.cyclomaticComplexity && analysis.complexity.cyclomaticComplexity > 10) {
       parts.push(`\n⚠️ High complexity: ${analysis.complexity.cyclomaticComplexity} (consider refactoring)`);
     }
 
