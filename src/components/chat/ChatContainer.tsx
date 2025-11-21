@@ -955,23 +955,12 @@ export function ChatContainer() {
                     />
                   </div>
 
-                  {/* Phase 3: Cognitive Status Dashboard Panel */}
-                  {showCognitivePanel && (
-                    <div style={{
-                      flex: 1,
-                      overflow: 'auto',
-                      borderLeft: '1px solid rgba(229, 231, 235, 0.5)',
-                      backgroundColor: 'rgba(249, 250, 251, 0.8)',
-                      minWidth: '0',
-                    }}>
-                      <CognitiveStatusDashboard />
-                    </div>
-                  )}
                 </div>
               </div>
             </KeyboardShortcutsProvider>
           </div>
 
+          {/* Phase 3: Cognitive Status Dashboard Panel */}
           {showCognitivePanel && (
             <div style={{
               flex: 1,
