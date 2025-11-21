@@ -35,6 +35,7 @@ import { accessibilityService } from '../../services/accessibility.service';
 import { thoughtStreamService } from '../../services/thought-stream.service';
 import { responseCacheService } from '../../services/response-cache.service';
 import { smartRoutingService } from '../../services/smart-routing.service';
+import { cognitiveLoopService } from '../../services/cognitive-loop.service';
 import { useChatState } from '../../store/chat.store';
 import type { IChatCompletionRequest, IChatCompletionChunk } from '../../modules/adapters';
 // Phase 2: Cognitive Services Integration
@@ -111,6 +112,23 @@ export function ChatContainer() {
         // Initialize response cache service
         await responseCacheService.initialize();
         console.log('[ChatContainer] Response cache service initialized');
+
+        // Initialize cognitive loop service and trigger immediate cycle
+        try {
+          const loopStatus = cognitiveLoopService.getStatus();
+
+          // Initialize if not already active
+          if (!loopStatus.isActive) {
+            await cognitiveLoopService.initialize();
+            console.log('[ChatContainer] Cognitive loop service initialized');
+          }
+
+          // Trigger immediate cognitive cycle to populate metrics
+          cognitiveLoopService.wakeNow();
+          console.log('[ChatContainer] Triggered immediate cognitive cycle');
+        } catch (error) {
+          console.warn('[ChatContainer] Failed to initialize cognitive loop:', error);
+        }
 
         // Apply user preferences
         const prefs = preferencesService.getPreferences();
