@@ -32,8 +32,9 @@ import { attachmentsService } from '../../services/attachments.service';
 import { documentParsingService } from '../../services/document.service';
 import { themeService } from '../../services/theme.service';
 import { accessibilityService } from '../../services/accessibility.service';
+import { thoughtStreamService } from '../../services/thought-stream.service';
 import { useChatState } from '../../store/chat.store';
-import type { IChatCompletionRequest } from '../../modules/adapters';
+import type { IChatCompletionRequest, IChatCompletionChunk } from '../../modules/adapters';
 // Phase 2: Cognitive Services Integration
 import { interactionMemoryBridgeService } from '../../services/interaction-memory-bridge.service';
 import { conversationEntityIntegrationService } from '../../services/conversation-entity-integration.service';
@@ -234,6 +235,78 @@ export function ChatContainer() {
 
     initializeAdapter();
   }, [selectedAdapterId, setModuleState]);
+
+  // Helper function to handle streaming responses with thought extraction
+  const handleStreamingResponse = async (
+    stream: ReadableStream<IChatCompletionChunk>,
+    messageId: string,
+    scrubMappings: ScrubMapping[]
+  ): Promise<string> => {
+    const reader = stream.getReader();
+    let fullContent = '';
+    let thoughtBuffer = '';
+    let inThinkingBlock = false;
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        // Extract content from chunk
+        const chunkContent = value.choices[0]?.delta?.content || '';
+        fullContent += chunkContent;
+
+        // Extract thoughts from streaming content (looking for <thinking> blocks)
+        for (const char of chunkContent) {
+          if (inThinkingBlock) {
+            thoughtBuffer += char;
+            // Check if we're closing the thinking block
+            if (thoughtBuffer.endsWith('</thinking>')) {
+              // Extract the thought content (remove </thinking> tag)
+              const thoughtContent = thoughtBuffer.slice(0, -11).trim();
+              if (thoughtContent) {
+                // Add thought to stream
+                await thoughtStreamService.addThought(
+                  messageId,
+                  'reasoning',
+                  thoughtContent
+                );
+              }
+              thoughtBuffer = '';
+              inThinkingBlock = false;
+            }
+          } else {
+            // Check if we're entering a thinking block
+            thoughtBuffer += char;
+            if (thoughtBuffer.endsWith('<thinking>')) {
+              inThinkingBlock = true;
+              thoughtBuffer = '';
+            } else if (thoughtBuffer.length > 10) {
+              // Reset buffer if it gets too long without finding tag
+              thoughtBuffer = thoughtBuffer.slice(-10);
+            }
+          }
+        }
+      }
+
+      // Complete the thought stream
+      await thoughtStreamService.completeStream(messageId);
+
+      // Remove thinking blocks from final content
+      const cleanedContent = fullContent.replace(/<thinking>[\s\S]*?<\/thinking>/g, '').trim();
+
+      // Unscrub PII if needed
+      if (scrubMappings.length > 0) {
+        const unscrubResult = anonymizerService.unscrub(cleanedContent, scrubMappings);
+        return unscrubResult.unscrubedText;
+      }
+
+      return cleanedContent;
+    } catch (error) {
+      console.error('[ChatContainer] Streaming error:', error);
+      throw error;
+    }
+  };
 
   // Handle sending a message
   const handleSendMessage = useCallback(
@@ -496,6 +569,7 @@ export function ChatContainer() {
                  selectedAdapterId === 'openai' ? 'gpt-4' : 'claude-3-5-sonnet-20241022',
           messages: messagesToSend,
           temperature: 0.7,
+          stream: true, // Enable streaming for thought extraction
         };
 
         // Create AbortController for external API calls (enables "Stop" button)
@@ -512,23 +586,45 @@ export function ChatContainer() {
           setAbortController(null);
         }
 
-        // STEP 6: Extract assistant response
-        if (!('choices' in response) || response.choices.length === 0) {
-          throw new Error('Invalid response from adapter');
-        }
+        let assistantContent: string;
+        let responseModel: string;
+        let responseUsage: any;
 
-        let assistantContent = response.choices[0].message.content;
+        // Generate a temporary message ID for thought stream (before DB insertion)
+        const tempMessageId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-        // STEP 7: Unscrub PII for external adapters
-        if (isExternalAdapter && scrubMappings.length > 0) {
-          setModuleState('UNSCRUBBING');
-          console.log('[ChatContainer] Restoring PII from response...');
+        // STEP 6: Handle streaming or non-streaming response
+        if (response instanceof ReadableStream) {
+          // Streaming response - extract thoughts in real-time
+          console.log('[ChatContainer] Processing streaming response with thought extraction...');
+          assistantContent = await handleStreamingResponse(
+            response,
+            tempMessageId,
+            scrubMappings
+          );
+          responseModel = request.model;
+          responseUsage = undefined; // Streaming doesn't provide usage info
+        } else {
+          // Non-streaming response
+          if (!('choices' in response) || response.choices.length === 0) {
+            throw new Error('Invalid response from adapter');
+          }
 
-          const unscrubResult = anonymizerService.unscrub(assistantContent, scrubMappings);
-          assistantContent = unscrubResult.unscrubedText;
+          assistantContent = response.choices[0].message.content;
+          responseModel = response.model;
+          responseUsage = response.usage;
 
-          if (unscrubResult.restoredCount > 0) {
-            console.log(`[ChatContainer] Restored ${unscrubResult.restoredCount} PII items`);
+          // STEP 7: Unscrub PII for external adapters
+          if (isExternalAdapter && scrubMappings.length > 0) {
+            setModuleState('UNSCRUBBING');
+            console.log('[ChatContainer] Restoring PII from response...');
+
+            const unscrubResult = anonymizerService.unscrub(assistantContent, scrubMappings);
+            assistantContent = unscrubResult.unscrubedText;
+
+            if (unscrubResult.restoredCount > 0) {
+              console.log(`[ChatContainer] Restored ${unscrubResult.restoredCount} PII items`);
+            }
           }
         }
 
@@ -539,11 +635,30 @@ export function ChatContainer() {
           content: assistantContent,
           module_used: selectedAdapterId,
           trace_data: JSON.stringify({
-            model: response.model,
-            usage: response.usage,
+            model: responseModel,
+            usage: responseUsage,
             scrubbed_pii_count: scrubMappings.length,
           }),
         });
+
+        // Re-associate thoughts with the actual message ID
+        if (tempMessageId !== assistantMessageId) {
+          // Update thought streams with real message ID
+          const tempThoughts = thoughtStreamService.getMessageThoughts(tempMessageId);
+          for (const thought of tempThoughts) {
+            await thoughtStreamService.addThought(
+              assistantMessageId,
+              thought.thought_type,
+              thought.content,
+              thought.metadata
+            );
+          }
+          // Clean up temp thoughts
+          await thoughtStreamService.deleteMessageThoughts(tempMessageId);
+        }
+
+        // Perform code analysis on the assistant's response
+        await thoughtStreamService.analyzeCodeInContent(assistantMessageId, assistantContent);
 
         // Update UI with assistant message
         const assistantMessage: ChatMessage = {

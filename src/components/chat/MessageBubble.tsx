@@ -9,6 +9,7 @@ import { attachmentsService } from '../../services/attachments.service';
 import { voiceService, type VoiceServiceEvent } from '../../services/voice.service';
 import { markdownService } from '../../services/markdown.service';
 import type { MessageAttachment } from '../../services/db.service';
+import { ThoughtStream } from './ThoughtStream';
 import 'highlight.js/styles/github-dark.css';
 import 'katex/dist/katex.min.css';
 import './MessageBubble.css';
@@ -134,6 +135,11 @@ export function MessageBubble({ messageId, role, content, timestamp, moduleUsed 
           )}
         </div>
       </div>
+
+      {/* AI Thought Stream - only for assistant messages */}
+      {role === 'assistant' && messageId && (
+        <ThoughtStream messageId={messageId} expandByDefault={false} />
+      )}
 
       {/* Image attachments */}
       {imageUrls.length > 0 && (
