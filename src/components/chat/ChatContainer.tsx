@@ -922,39 +922,26 @@ export function ChatContainer() {
                 Skip to conversations
               </a>
 
-              <div style={{ height: '100%', display: 'flex' }} lang="en">
+              <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }} lang="en">
                 {/* Screen reader only heading */}
                 <h1 className="sr-only">SML Guardian AI Chat Application</h1>
 
-                <ConversationSidebar
-                  conversations={conversations}
-                  currentConversationId={currentConversation?.id || null}
-                  onConversationSelect={switchToConversation}
-                  onConversationCreate={createNewConversation}
-                  onConversationUpdate={loadConversations}
-                  isOpen={sidebarOpen}
-                  onToggle={() => setSidebarOpen(!sidebarOpen)}
-                />
-
                 <div
+                  id="main-content"
                   style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
                   role="main"
                   aria-label="Chat interface"
                 >
-                  <AdapterSelector />
-                  <div id="main-content" style={{ flex: 1, overflow: 'hidden' }}>
-                    <ChatInterface
-                      messages={messages}
-                      onSendMessage={handleSendMessage}
-                      isLoading={isLoading}
-                      loadingMessage={
-                        selectedAdapterId === 'local_guardian'
-                          ? 'Local AI is thinking...'
-                          : `${adapterRegistry.get(selectedAdapterId)?.name} is thinking...`
-                      }
-                    />
-                  </div>
-
+                  <ChatInterface
+                    messages={messages}
+                    onSendMessage={handleSendMessage}
+                    isLoading={isLoading}
+                    loadingMessage={
+                      selectedAdapterId === 'local_guardian'
+                        ? 'Local AI is thinking...'
+                        : `${adapterRegistry.get(selectedAdapterId)?.name} is thinking...`
+                    }
+                  />
                 </div>
               </div>
             </KeyboardShortcutsProvider>
