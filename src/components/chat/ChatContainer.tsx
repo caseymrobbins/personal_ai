@@ -33,6 +33,8 @@ import { documentParsingService } from '../../services/document.service';
 import { themeService } from '../../services/theme.service';
 import { accessibilityService } from '../../services/accessibility.service';
 import { thoughtStreamService } from '../../services/thought-stream.service';
+import { responseCacheService } from '../../services/response-cache.service';
+import { smartRoutingService } from '../../services/smart-routing.service';
 import { useChatState } from '../../store/chat.store';
 import type { IChatCompletionRequest, IChatCompletionChunk } from '../../modules/adapters';
 // Phase 2: Cognitive Services Integration
@@ -47,6 +49,8 @@ export function ChatContainer() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showCognitivePanel, setShowCognitivePanel] = useState(false);
+  const [cacheHit, setCacheHit] = useState(false);
+  const [routingRecommendation, setRoutingRecommendation] = useState<string | null>(null);
   const [modelStatus, setModelStatus] = useState<{
     ready: boolean;
     loading?: boolean;
@@ -104,6 +108,10 @@ export function ChatContainer() {
         accessibilityService.initialize();
         console.log('[ChatContainer] Accessibility service initialized');
 
+        // Initialize response cache service
+        await responseCacheService.initialize();
+        console.log('[ChatContainer] Response cache service initialized');
+
         // Apply user preferences
         const prefs = preferencesService.getPreferences();
         socraticService.setSocraticMode(prefs.enableSocraticMode);
@@ -159,6 +167,28 @@ export function ChatContainer() {
 
     init();
   }, [loadConversations]);
+
+  // Periodic cache cleanup
+  useEffect(() => {
+    const cleanupCache = async () => {
+      try {
+        const expiredCount = await responseCacheService.clearExpired();
+        if (expiredCount > 0) {
+          console.log(`[ChatContainer] Cleared ${expiredCount} expired cache entries`);
+        }
+      } catch (error) {
+        console.warn('[ChatContainer] Cache cleanup failed:', error);
+      }
+    };
+
+    // Clean expired entries immediately on mount
+    cleanupCache();
+
+    // Then run cleanup every hour
+    const cleanupInterval = setInterval(cleanupCache, 60 * 60 * 1000);
+
+    return () => clearInterval(cleanupInterval);
+  }, []);
 
   // Phase 2: Periodic goal evaluation cycle
   useEffect(() => {
@@ -426,6 +456,91 @@ export function ChatContainer() {
         // Announce message sent to screen readers
         accessibilityService.announce('Message sent', 'polite');
 
+        // STEP 1.7: Smart routing recommendation
+        try {
+          const recommendation = await smartRoutingService.getRecommendation(content, selectedAdapterId);
+
+          console.log('[ChatContainer] Smart routing recommendation:', {
+            recommended: recommendation.adapterId,
+            current: selectedAdapterId,
+            confidence: recommendation.confidence,
+            reasoning: recommendation.reasoning,
+          });
+
+          // Store recommendation for UI display
+          if (recommendation.adapterId !== selectedAdapterId && recommendation.confidence > 0.8) {
+            setRoutingRecommendation(recommendation.adapterId);
+          } else {
+            setRoutingRecommendation(null);
+          }
+
+          // Log routing decision
+          smartRoutingService.logRoutingDecision(content, recommendation, selectedAdapterId);
+        } catch (error) {
+          console.warn('[ChatContainer] Smart routing failed:', error);
+          setRoutingRecommendation(null);
+        }
+
+        // STEP 1.8: Check response cache
+        let cachedResponse: string | null = null;
+        try {
+          cachedResponse = await responseCacheService.get(content, selectedAdapterId);
+
+          if (cachedResponse) {
+            console.log('[ChatContainer] ✅ Cache hit! Using cached response');
+            setCacheHit(true);
+
+            // Add cached assistant message to database
+            const assistantMessageId = dbService.addMessage({
+              conversation_id: currentConversation.id,
+              role: 'assistant',
+              content: cachedResponse,
+              module_used: selectedAdapterId,
+              trace_data: JSON.stringify({
+                cached: true,
+                cache_timestamp: Date.now(),
+              }),
+            });
+
+            // Update UI with cached assistant message
+            const assistantMessage: ChatMessage = {
+              id: assistantMessageId,
+              conversation_id: currentConversation.id,
+              role: 'assistant',
+              content: cachedResponse,
+              module_used: selectedAdapterId,
+              trace_data: null,
+              timestamp: Date.now(),
+            };
+
+            setMessages(prev => [...prev, assistantMessage]);
+
+            // Announce cached response to screen readers
+            accessibilityService.announce('Response retrieved from cache', 'polite');
+
+            // Record to memory bridge
+            try {
+              await interactionMemoryBridgeService.recordMessage(
+                currentConversation.id,
+                'assistant',
+                cachedResponse,
+                { moduleUsed: selectedAdapterId, cached: true }
+              );
+            } catch (error) {
+              console.warn('[ChatContainer] Failed to record cached message to memory bridge:', error);
+            }
+
+            setIsLoading(false);
+            return; // Exit early with cached response
+          } else {
+            console.log('[ChatContainer] Cache miss - querying adapter');
+            setCacheHit(false);
+          }
+        } catch (error) {
+          console.warn('[ChatContainer] Cache check failed:', error);
+          setCacheHit(false);
+        }
+
         // STEP 2: Track governance metrics (ARI + RDI)
         // ARI: Autonomy Retention Index - measures user autonomy
         // RDI: Reality Drift Index - detects conceptual topic drift
@@ -659,6 +774,24 @@ export function ChatContainer() {
 
         // Perform code analysis on the assistant's response
         await thoughtStreamService.analyzeCodeInContent(assistantMessageId, assistantContent);
+
+        // STEP 9: Cache the response for future use
+        try {
+          await responseCacheService.set(
+            content,
+            assistantContent,
+            selectedAdapterId,
+            {
+              model: responseModel,
+              timestamp: Date.now(),
+              conversationId: currentConversation.id,
+            }
+          );
+          console.log('[ChatContainer] Response cached for future queries');
+        } catch (error) {
+          console.warn('[ChatContainer] Failed to cache response:', error);
+          // Don't fail the operation if caching fails
+        }
 
         // Update UI with assistant message
         const assistantMessage: ChatMessage = {
@@ -906,6 +1039,42 @@ export function ChatContainer() {
           </button>
         </div>
 
+        {/* Smart Routing Recommendation Banner */}
+        {routingRecommendation && (
+          <div style={{
+            padding: '0.75rem 1rem',
+            background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(245, 158, 11, 0.1) 100%)',
+            borderBottom: '1px solid rgba(251, 191, 36, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: '0.875rem',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span>💡</span>
+              <span>
+                <strong>Routing suggestion:</strong> {' '}
+                {adapterRegistry.get(routingRecommendation)?.name || routingRecommendation} {' '}
+                might be better for this query
+              </span>
+            </div>
+            <button
+              onClick={() => setRoutingRecommendation(null)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'rgba(0, 0, 0, 0.5)',
+                cursor: 'pointer',
+                fontSize: '1.2rem',
+                padding: '0 0.25rem',
+              }}
+              aria-label="Dismiss routing suggestion"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         {/* Main chat area with optional dashboard panel */}
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', gap: '0.5px' }}>
           <div style={{ flex: showCognitivePanel ? 2 : 1, overflow: 'hidden', minWidth: '0' }}>
@@ -937,7 +1106,9 @@ export function ChatContainer() {
                     onSendMessage={handleSendMessage}
                     isLoading={isLoading}
                     loadingMessage={
-                      selectedAdapterId === 'local_guardian'
+                      cacheHit
+                        ? '⚡ Loading from cache...'
+                        : selectedAdapterId === 'local_guardian'
                         ? 'Local AI is thinking...'
                         : `${adapterRegistry.get(selectedAdapterId)?.name} is thinking...`
                     }
