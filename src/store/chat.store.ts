@@ -76,7 +76,7 @@ const initialState = {
  * const { moduleState, externalProviderName } = useChatState();
  * ```
  */
-export const useChatState = create<ChatState>((set) => ({
+export const useChatState = create<ChatState>((set: any) => ({
   ...initialState,
 
   /**
@@ -84,7 +84,7 @@ export const useChatState = create<ChatState>((set) => ({
    * @param state The new module state
    * @param provider Optional external provider name
    */
-  setModuleState: (state, provider) =>
+  setModuleState: (state: ModuleState, provider?: string) =>
     set({
       moduleState: state,
       externalProviderName: provider ?? null,
@@ -95,14 +95,14 @@ export const useChatState = create<ChatState>((set) => ({
    * Used for "Humanity Override" - allows user to cancel external API calls
    * @param controller The AbortController or null to clear
    */
-  setAbortController: (controller) =>
+  setAbortController: (controller: AbortController | null) =>
     set({ currentAbortController: controller }),
 
   /**
    * Set the current conversation
    * @param conversationId The conversation ID or null
    */
-  setConversation: (conversationId) =>
+  setConversation: (conversationId: string | null) =>
     set({ currentConversationId: conversationId }),
 
   /**
@@ -110,14 +110,14 @@ export const useChatState = create<ChatState>((set) => ({
    * This password is NEVER persisted
    * @param password The master password or null to clear
    */
-  setSessionPassword: (password) =>
+  setSessionPassword: (password: string | null) =>
     set({ sessionMasterPassword: password }),
 
   /**
    * Set the selected AI adapter
    * @param adapterId The adapter ID (e.g., 'local_guardian', 'openai', 'anthropic')
    */
-  setSelectedAdapter: (adapterId) =>
+  setSelectedAdapter: (adapterId: string) =>
     set({ selectedAdapterId: adapterId }),
 
   /**

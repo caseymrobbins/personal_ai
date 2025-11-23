@@ -448,7 +448,7 @@ class PrivacyEnforcementService {
    * Log data access attempt
    */
   private logAccessAttempt(
-    dataId: string,
+    _dataId: string,
     userId: string,
     accessType: 'read' | 'write' | 'delete' | 'export',
     purpose: string,
@@ -519,7 +519,7 @@ class PrivacyEnforcementService {
     const deletionId = this.generateDeletionId();
     let deletedItems = 0;
 
-    for (const [_dataId, data] of this.protectedDataStore.entries()) {
+    for (const [dataId, data] of this.protectedDataStore.entries()) {
       if (
         (!categories || categories.includes(data.classification.category)) &&
         data.classification.category !== 'audit-log'
