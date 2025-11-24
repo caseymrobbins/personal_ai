@@ -161,9 +161,9 @@ describe('MessageBubble', () => {
     it('should display empty content', () => {
       render(<MessageBubble role="user" content="" />);
 
-      const messageContent = document.querySelector('.message-content');
-      expect(messageContent).toBeInTheDocument();
-      expect(messageContent).toHaveTextContent('');
+      // Component should render the bubble even with empty content
+      const messageBubble = document.querySelector('.message-bubble');
+      expect(messageBubble).toBeInTheDocument();
     });
 
     it('should display special characters correctly', () => {

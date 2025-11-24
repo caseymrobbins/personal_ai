@@ -8,7 +8,7 @@ test.describe('Settings Management', () => {
 
   test('should navigate to settings', async ({ page }) => {
     // Look for settings navigation
-    let settingsLink = page.locator('a:has-text("Settings"), button:has-text("Settings")').first();
+    const settingsLink = page.locator('a:has-text("Settings"), button:has-text("Settings")').first();
 
     if (await settingsLink.isVisible({ timeout: 2000 })) {
       await settingsLink.click();
@@ -26,7 +26,7 @@ test.describe('Settings Management', () => {
 
   test('should display settings options', async ({ page }) => {
     // Try to find settings
-    let settingsLink = page.locator('a:has-text("Settings"), button:has-text("Settings")').first();
+    const settingsLink = page.locator('a:has-text("Settings"), button:has-text("Settings")').first();
 
     if (await settingsLink.isVisible({ timeout: 2000 })) {
       await settingsLink.click();
@@ -48,7 +48,7 @@ test.describe('Settings Management', () => {
   });
 
   test('should handle settings changes', async ({ page }) => {
-    let settingsLink = page.locator('a:has-text("Settings"), button:has-text("Settings")').first();
+    const settingsLink = page.locator('a:has-text("Settings"), button:has-text("Settings")').first();
 
     if (await settingsLink.isVisible({ timeout: 2000 })) {
       await settingsLink.click();
@@ -120,7 +120,7 @@ test.describe('API Keys Management', () => {
   });
 
   test('should display API key fields', async ({ page }) => {
-    let settingsLink = page.locator('a:has-text("Settings"), button:has-text("Settings")').first();
+    const settingsLink = page.locator('a:has-text("Settings"), button:has-text("Settings")').first();
 
     if (await settingsLink.isVisible({ timeout: 2000 })) {
       await settingsLink.click();
@@ -137,7 +137,7 @@ test.describe('API Keys Management', () => {
   });
 
   test('should allow entering API keys', async ({ page }) => {
-    let settingsLink = page.locator('a:has-text("Settings"), button:has-text("Settings")').first();
+    const settingsLink = page.locator('a:has-text("Settings"), button:has-text("Settings")').first();
 
     if (await settingsLink.isVisible({ timeout: 2000 })) {
       await settingsLink.click();

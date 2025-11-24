@@ -128,7 +128,7 @@ test.describe('Database Export & Import', () => {
 
   test('should provide backup/export option', async ({ page }) => {
     // Navigate to settings to find backup option
-    let settingsLink = page.locator('a:has-text("Settings"), button:has-text("Settings")').first();
+    const settingsLink = page.locator('a:has-text("Settings"), button:has-text("Settings")').first();
 
     if (await settingsLink.isVisible({ timeout: 2000 })) {
       await settingsLink.click();
@@ -145,7 +145,7 @@ test.describe('Database Export & Import', () => {
   });
 
   test('should handle export without errors', async ({ page }) => {
-    let settingsLink = page.locator('a:has-text("Settings"), button:has-text("Settings")').first();
+    const settingsLink = page.locator('a:has-text("Settings"), button:has-text("Settings")').first();
 
     if (await settingsLink.isVisible({ timeout: 2000 })) {
       await settingsLink.click();
