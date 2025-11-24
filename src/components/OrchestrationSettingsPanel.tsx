@@ -35,6 +35,7 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
   const [maxCostPerQuery, setMaxCostPerQuery] = useState<number>(0.01); // $0.01
   const [maxLatency, setMaxLatency] = useState<number>(3000); // 3 seconds
   const [minConfidence, setMinConfidence] = useState<number>(0.6); // 60%
+  const [enableStreaming, setEnableStreaming] = useState<boolean>(true); // Enable streaming hybrid
 
   // Metrics
   const [metrics, setMetrics] = useState<OrchestrationMetrics | null>(null);
@@ -122,6 +123,7 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
         setMaxCostPerQuery(prefs.maxCostPerQuery || 0.01);
         setMaxLatency(prefs.maxLatency || 3000);
         setMinConfidence(prefs.minConfidence || 0.6);
+        setEnableStreaming(prefs.enableStreaming !== undefined ? prefs.enableStreaming : true);
         setSelectedPreset(prefs.selectedPreset || 'balanced');
       } catch (error) {
         console.error('Failed to load orchestration preferences:', error);
@@ -137,10 +139,11 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
       maxCostPerQuery,
       maxLatency,
       minConfidence,
+      enableStreaming,
       selectedPreset,
     };
     localStorage.setItem('orchestrationPreferences', JSON.stringify(preferences));
-  }, [priority, privacyLevel, maxCostPerQuery, maxLatency, minConfidence, selectedPreset]);
+  }, [priority, privacyLevel, maxCostPerQuery, maxLatency, minConfidence, enableStreaming, selectedPreset]);
 
   // Load and refresh metrics when panel is open
   useEffect(() => {
@@ -332,13 +335,14 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
     }
   };
 
-  const getPreferences = (): OrchestrationPreferences => {
+  const getPreferences = (): OrchestrationPreferences & { enableStreaming: boolean } => {
     return {
       priority,
       privacyLevel,
       maxCostPerQuery,
       maxLatency,
       minConfidence,
+      enableStreaming,
     };
   };
 
@@ -734,6 +738,26 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
                   <span>30%</span>
                   <span>90%</span>
                 </div>
+              </div>
+
+              <div className="toggle-item">
+                <label htmlFor="enableStreaming">
+                  <div className="toggle-label-content">
+                    <span className="toggle-title">⚡ Streaming Hybrid Execution</span>
+                    <span className="toggle-desc">
+                      Start with local model, switch to cloud mid-response if quality degrades
+                    </span>
+                  </div>
+                  <div className="toggle-switch">
+                    <input
+                      id="enableStreaming"
+                      type="checkbox"
+                      checked={enableStreaming}
+                      onChange={(e) => setEnableStreaming(e.target.checked)}
+                    />
+                    <span className="toggle-slider"></span>
+                  </div>
+                </label>
               </div>
             </div>
           </section>

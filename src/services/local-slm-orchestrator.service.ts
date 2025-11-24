@@ -18,6 +18,7 @@ import type { IModuleAdapter } from '../modules/adapters/adapter.interface';
 import { db } from '../db';
 import { responseCacheService } from './response-cache.service';
 import { QualityGateValidatorService } from './quality-gate-validator.service';
+import { StreamingHybridExecutorService } from './streaming-hybrid-executor.service';
 
 /**
  * Orchestration strategy types
@@ -697,6 +698,99 @@ Respond with JSON only:`;
     } else {
       this.metrics.cacheHitRate =
         (this.metrics.cacheHitRate * (n - 1)) / n;
+    }
+  }
+
+  /**
+   * Execute streaming hybrid orchestration with mid-response switching
+   *
+   * Starts with local SLM streaming and can intelligently switch to cloud
+   * mid-response if quality degradation is detected.
+   *
+   * @param request - Chat completion request
+   * @param preferences - User preferences for routing
+   * @param onChunk - Callback for each streamed chunk
+   * @param abortSignal - Optional abort signal
+   * @returns Streaming orchestration result
+   */
+  public async orchestrateStreaming(
+    request: IChatCompletionRequest,
+    preferences: OrchestrationPreferences = { priority: 'balanced', privacyLevel: 'moderate' },
+    onChunk: (chunk: string, metadata?: any) => void,
+    abortSignal?: AbortSignal
+  ): Promise<OrchestrationResult> {
+    const startTime = Date.now();
+
+    try {
+      // Check if streaming hybrid is enabled by preferences
+      const enableStreaming = preferences.priority !== 'cost'; // Disable for cost-focused users
+
+      if (!enableStreaming) {
+        // Fall back to regular orchestration
+        return await this.orchestrate(request, preferences, abortSignal);
+      }
+
+      // Execute streaming hybrid
+      const streamingExecutor = StreamingHybridExecutorService.getInstance();
+      const streamingResult = await streamingExecutor.executeStreamingHybrid(
+        request,
+        preferences,
+        onChunk,
+        abortSignal
+      );
+
+      // Update metrics
+      this.metrics.totalQueries++;
+
+      if (streamingResult.switched) {
+        this.metrics.escalations++;
+        this.metrics.hybrid++;
+      } else {
+        this.metrics.localHandled++;
+      }
+
+      this.metrics.totalCost += streamingResult.cost;
+      this.metrics.averageLatency =
+        (this.metrics.averageLatency * (this.metrics.totalQueries - 1) + streamingResult.latency) /
+        this.metrics.totalQueries;
+
+      // Map to OrchestrationResult
+      const result: OrchestrationResult = {
+        response: streamingResult.content,
+        modelUsed: streamingResult.model as ModelIdentifier,
+        strategy: streamingResult.switched ? 'hybrid' : 'local',
+        confidence: 0.85, // Streaming implies reasonable confidence
+        latency: streamingResult.latency,
+        cost: streamingResult.cost,
+        escalated: streamingResult.switched,
+        cacheHit: false,
+      };
+
+      // Log the decision
+      const decision: OrchestrationDecision = {
+        strategy: result.strategy,
+        confidence: result.confidence,
+        selectedModel: result.modelUsed,
+        reasoning: streamingResult.switched
+          ? `Started local, switched to ${streamingResult.model} at chunk ${streamingResult.switchPoint?.chunkIndex} due to ${streamingResult.switchPoint?.reason}`
+          : 'Handled entirely by local streaming',
+        canHandleLocally: !streamingResult.switched,
+        estimatedLatency: streamingResult.latency,
+        estimatedCost: streamingResult.cost,
+        qualityPrediction: streamingResult.switchPoint?.qualityScore || 0.85,
+        requiresPrivacy: false,
+        queryType: 'streaming',
+      };
+
+      await this.logOrchestrationDecision(request, decision, result);
+
+      return result;
+    } catch (error) {
+      console.error('[LocalSLMOrchestrator] Streaming orchestration failed:', error);
+
+      // Fall back to regular orchestration
+      console.log('[LocalSLMOrchestrator] Falling back to non-streaming orchestration');
+      return await this.orchestrate(request, preferences, abortSignal);
     }
   }
 
