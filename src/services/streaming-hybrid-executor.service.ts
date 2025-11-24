@@ -382,7 +382,7 @@ export class StreamingHybridExecutorService {
     for (const word of words) {
       if (abortSignal?.aborted) break;
       yield word + ' ';
-      await new Promise((resolve) => setTimeout(resolve, 50)); // Simulate streaming delay
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 50)); // Simulate streaming delay
     }
   }
 
@@ -401,7 +401,7 @@ export class StreamingHybridExecutorService {
     for (const word of words) {
       if (abortSignal?.aborted) break;
       yield word + ' ';
-      await new Promise((resolve) => setTimeout(resolve, 30)); // Cloud is slightly faster per word
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 30)); // Cloud is slightly faster per word
     }
   }
 }

@@ -13,12 +13,14 @@ import type {
   IChatCompletionResponse,
   IChatMessage,
 } from '../modules/adapters/adapter.interface';
-import { AdapterRegistry } from '../modules/adapters/AdapterRegistry';
+import { adapterRegistry } from '../modules/adapters/AdapterRegistry';
 import type { IModuleAdapter } from '../modules/adapters/adapter.interface';
 import { db } from '../db';
 import { responseCacheService } from './response-cache.service';
 import { QualityGateValidatorService } from './quality-gate-validator.service';
 import { StreamingHybridExecutorService } from './streaming-hybrid-executor.service';
+import { RequestDeduplicationService } from './request-deduplication.service';
+import { ModelWarmUpService } from './model-warmup.service';
 
 /**
  * Orchestration strategy types
@@ -101,8 +103,9 @@ export interface OrchestrationMetrics {
  */
 export class LocalSLMOrchestratorService {
   private static instance: LocalSLMOrchestratorService;
-  private adapterRegistry: AdapterRegistry;
   private qualityValidator: QualityGateValidatorService;
+  private deduplicationService: RequestDeduplicationService;
+  private warmUpService: ModelWarmUpService;
   private metrics: OrchestrationMetrics;
 
   // Default thresholds (can be overridden by preferences)
@@ -131,9 +134,13 @@ export class LocalSLMOrchestratorService {
   };
 
   private constructor() {
-    this.adapterRegistry = AdapterRegistry.getInstance();
     this.qualityValidator = QualityGateValidatorService.getInstance();
+    this.deduplicationService = RequestDeduplicationService.getInstance();
+    this.warmUpService = ModelWarmUpService.getInstance();
     this.metrics = this.initializeMetrics();
+
+    // Model warm-up is triggered automatically in ModelWarmUpService constructor
+    console.log('[LocalSLMOrchestrator] Performance services initialized (deduplication + warm-up)');
   }
 
   public static getInstance(): LocalSLMOrchestratorService {
@@ -154,6 +161,21 @@ export class LocalSLMOrchestratorService {
   public async orchestrate(
     request: IChatCompletionRequest,
     preferences: OrchestrationPreferences = { priority: 'balanced', privacyLevel: 'moderate' },
+    abortSignal?: AbortSignal
+  ): Promise<OrchestrationResult> {
+    // Wrap with request deduplication for performance
+    return await this.deduplicationService.executeWithDeduplication(
+      request,
+      () => this.orchestrateInternal(request, preferences, abortSignal)
+    );
+  }
+
+  /**
+   * Internal orchestration implementation (wrapped by deduplication)
+   */
+  private async orchestrateInternal(
+    request: IChatCompletionRequest,
+    preferences: OrchestrationPreferences,
     abortSignal?: AbortSignal
   ): Promise<OrchestrationResult> {
     const startTime = Date.now();
@@ -240,7 +262,10 @@ export class LocalSLMOrchestratorService {
     request: IChatCompletionRequest,
     preferences: OrchestrationPreferences
   ): Promise<OrchestrationDecision> {
-    const localAdapter = this.adapterRegistry.getAdapter('local-guardian');
+    // Ensure model is warm before decision-making
+    await this.warmUpService.ensureWarm();
+
+    const localAdapter = adapterRegistry.get('local-guardian');
 
     if (!localAdapter || !localAdapter.isReady()) {
       // If local model not ready, delegate to Claude by default
@@ -411,7 +436,10 @@ Respond with JSON only:`;
     decision: OrchestrationDecision,
     abortSignal?: AbortSignal
   ): Promise<OrchestrationResult> {
-    const localAdapter = this.adapterRegistry.getAdapter('local-guardian');
+    // Ensure model is warm before executing (eliminates cold-start latency)
+    await this.warmUpService.ensureWarm();
+
+    const localAdapter = adapterRegistry.get('local-guardian');
 
     if (!localAdapter || !localAdapter.isReady()) {
       throw new Error('Local adapter not available');
@@ -541,7 +569,7 @@ Respond with JSON only:`;
     abortSignal?: AbortSignal,
     startTime: number
   ): Promise<OrchestrationResult> {
-    const claudeAdapter = this.adapterRegistry.getAdapter('anthropic');
+    const claudeAdapter = adapterRegistry.get('anthropic');
 
     if (!claudeAdapter) {
       throw new Error('Fallback adapter not available');
@@ -574,7 +602,7 @@ Respond with JSON only:`;
       cohere: 'cohere',
     };
 
-    return this.adapterRegistry.getAdapter(adapterMap[model]);
+    return adapterRegistry.get(adapterMap[model]);
   }
 
   /**
@@ -800,6 +828,28 @@ Respond with JSON only:`;
 
   public resetMetrics(): void {
     this.metrics = this.initializeMetrics();
+  }
+
+  /**
+   * Get performance optimization metrics
+   */
+  public getPerformanceMetrics(): {
+    deduplication: ReturnType<typeof this.deduplicationService.getStatistics>;
+    warmUp: ReturnType<typeof this.warmUpService.getStatistics>;
+  } {
+    return {
+      deduplication: this.deduplicationService.getStatistics(),
+      warmUp: this.warmUpService.getStatistics(),
+    };
+  }
+
+  /**
+   * Reset all performance metrics
+   */
+  public resetPerformanceMetrics(): void {
+    this.deduplicationService.resetMetrics();
+    this.warmUpService.resetMetrics();
+    console.log('[LocalSLMOrchestrator] Performance metrics reset');
   }
 
   /**
