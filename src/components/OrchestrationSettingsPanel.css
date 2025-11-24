@@ -742,6 +742,226 @@
   color: var(--text-primary, #ffffff);
 }
 
+/* A/B Testing Section */
+.ab-testing-section {
+  background: var(--bg-secondary, #16213e);
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.ab-test-button {
+  padding: 6px 12px;
+  background: var(--bg-hover, #2a2a3e);
+  border: 1px solid var(--border-color, #3a3a4e);
+  border-radius: 6px;
+  color: var(--text-primary, #ffffff);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ab-test-button:hover {
+  transform: translateY(-1px);
+}
+
+.ab-test-button.start {
+  background: var(--accent-color, #4a90e2);
+  border-color: var(--accent-color, #4a90e2);
+}
+
+.ab-test-button.start:hover {
+  background: #3a7bc8;
+  border-color: #3a7bc8;
+}
+
+.ab-test-button.stop {
+  background: #f44336;
+  border-color: #f44336;
+}
+
+.ab-test-button.stop:hover {
+  background: #d32f2f;
+  border-color: #d32f2f;
+}
+
+.ab-test-container {
+  margin-top: 16px;
+}
+
+.ab-test-info {
+  margin-bottom: 16px;
+}
+
+.ab-test-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--bg-hover, #2a2a3e);
+  color: var(--text-primary, #ffffff);
+}
+
+.status-badge.running {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+}
+
+.status-badge.paused {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+}
+
+.status-badge.completed {
+  background: rgba(158, 158, 158, 0.2);
+  color: #9e9e9e;
+}
+
+.ab-test-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary, #ffffff);
+}
+
+.ab-test-description {
+  font-size: 13px;
+  color: var(--text-secondary, #a0a0a0);
+}
+
+.variants-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  background: var(--bg-primary, #1a1a2e);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.variants-table th {
+  background: var(--bg-hover, #2a2a3e);
+  padding: 12px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary, #a0a0a0);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.variants-table td {
+  padding: 12px;
+  border-top: 1px solid var(--border-color, #2a2a3e);
+  font-size: 13px;
+  color: var(--text-primary, #ffffff);
+}
+
+.variants-table tr.winner {
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.winner-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.control-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(74, 144, 226, 0.2);
+  color: #4a90e2;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.improvements {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.improvements .positive {
+  color: #4caf50;
+}
+
+.improvements .negative {
+  color: #f44336;
+}
+
+.confidence-bar {
+  position: relative;
+  width: 100%;
+  height: 24px;
+  background: var(--bg-hover, #2a2a3e);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.confidence-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #f44336, #ffc107, #4caf50);
+  transition: width 0.3s;
+}
+
+.confidence-text {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary, #ffffff);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.ab-test-hint {
+  margin-top: 12px;
+  padding: 10px;
+  background: rgba(74, 144, 226, 0.1);
+  border-left: 3px solid var(--accent-color, #4a90e2);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text-secondary, #a0a0a0);
+}
+
+.ab-test-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-secondary, #a0a0a0);
+}
+
+.ab-test-empty p {
+  margin: 8px 0;
+}
+
+.ab-test-benefits {
+  margin-top: 16px;
+  line-height: 1.8;
+  color: var(--text-secondary, #a0a0a0);
+  font-size: 13px;
+}
+
 /* Keyboard Shortcuts Section */
 .keyboard-shortcuts-section {
   background: var(--bg-secondary, #16213e);

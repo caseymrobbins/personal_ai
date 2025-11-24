@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react';
 import { LocalSLMOrchestratorService } from '../services/local-slm-orchestrator.service';
 import type { OrchestrationPreferences, OrchestrationMetrics } from '../services/local-slm-orchestrator.service';
 import { OrchestrationMetricsHistoryService } from '../services/orchestration-metrics-history.service';
+import { ABTestingService, type ABTest, type ABTestVariant } from '../services/ab-testing.service';
 import { Sparkline, TrendIndicator } from './Sparkline';
 import './OrchestrationSettingsPanel.css';
 
@@ -47,6 +48,10 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
   const [selectedPreset, setSelectedPreset] = useState<string>('balanced');
   const [showSavePresetDialog, setShowSavePresetDialog] = useState<boolean>(false);
   const [newPresetName, setNewPresetName] = useState<string>('');
+
+  // A/B Testing
+  const [currentTest, setCurrentTest] = useState<ABTest | null>(null);
+  const [showABTestDialog, setShowABTestDialog] = useState<boolean>(false);
 
   // Default presets
   const defaultPresets: OrchestrationPreset[] = [
@@ -150,9 +155,13 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
     if (isOpen) {
       // Load metrics immediately
       loadMetrics();
+      loadCurrentTest();
 
       // Refresh every 2 seconds
-      const interval = setInterval(loadMetrics, 2000);
+      const interval = setInterval(() => {
+        loadMetrics();
+        loadCurrentTest();
+      }, 2000);
       setMetricsRefreshInterval(interval);
 
       return () => {
@@ -332,6 +341,82 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
       loadMetrics();
     } catch (error) {
       console.error('Failed to reset metrics:', error);
+    }
+  };
+
+  const loadCurrentTest = () => {
+    try {
+      const abTestingService = ABTestingService.getInstance();
+      const test = abTestingService.getCurrentTest();
+      setCurrentTest(test);
+    } catch (error) {
+      console.error('Failed to load A/B test:', error);
+    }
+  };
+
+  const startQuickABTest = () => {
+    try {
+      const abTestingService = ABTestingService.getInstance();
+
+      // Create two variants: current config vs quality-first
+      const controlVariant: ABTestVariant = {
+        id: 'variant-a',
+        name: 'Current Config (Control)',
+        config: getPreferences(),
+        trafficAllocation: 0.5,
+        isControl: true,
+      };
+
+      const qualityPreset = presets.find((p) => p.name === 'quality-first');
+      const testVariant: ABTestVariant = {
+        id: 'variant-b',
+        name: 'Quality First',
+        config: qualityPreset || getPreferences(),
+        trafficAllocation: 0.5,
+        isControl: false,
+      };
+
+      const test = abTestingService.startTest(
+        'Quick Config Comparison',
+        'Compare current configuration vs quality-first preset',
+        [controlVariant, testVariant],
+        30, // Minimum 30 queries per variant
+        0.05 // 95% confidence
+      );
+
+      setCurrentTest(test);
+      setShowABTestDialog(false);
+      alert('A/B test started! The system will now split traffic between configurations.');
+    } catch (error) {
+      console.error('Failed to start A/B test:', error);
+      alert('Failed to start A/B test. See console for details.');
+    }
+  };
+
+  const stopABTest = () => {
+    try {
+      const abTestingService = ABTestingService.getInstance();
+      const completedTest = abTestingService.completeTest();
+      setCurrentTest(completedTest);
+    } catch (error) {
+      console.error('Failed to stop A/B test:', error);
+    }
+  };
+
+  const exportABTestResults = () => {
+    try {
+      const abTestingService = ABTestingService.getInstance();
+      const json = abTestingService.exportResults();
+
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ab-test-results-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to export A/B test results:', error);
     }
   };
 
@@ -987,6 +1072,121 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
                     <span className="breakdown-value">{metrics.iterative}</span>
                   </div>
                 </div>
+              </div>
+            )}
+          </section>
+
+          {/* A/B Testing Section */}
+          <section className="settings-section ab-testing-section">
+            <div className="section-header">
+              <h3>🧪 A/B Testing</h3>
+              <div className="header-buttons">
+                {currentTest && currentTest.status === 'running' && (
+                  <>
+                    <button className="ab-test-button" onClick={exportABTestResults} title="Export results">
+                      📥 Export
+                    </button>
+                    <button className="ab-test-button stop" onClick={stopABTest} title="Stop test">
+                      ⏹️ Stop Test
+                    </button>
+                  </>
+                )}
+                {(!currentTest || currentTest.status === 'completed') && (
+                  <button className="ab-test-button start" onClick={startQuickABTest} title="Start quick A/B test">
+                    ▶️ Start Quick Test
+                  </button>
+                )}
+              </div>
+            </div>
+            <p className="section-description">
+              Compare configurations side-by-side to find the optimal settings
+            </p>
+
+            {currentTest ? (
+              <div className="ab-test-container">
+                <div className="ab-test-info">
+                  <div className="ab-test-status">
+                    <span className={`status-badge ${currentTest.status}`}>
+                      {currentTest.status === 'running' ? '🟢 Running' :
+                       currentTest.status === 'paused' ? '🟡 Paused' : '⚫ Completed'}
+                    </span>
+                    <span className="ab-test-name">{currentTest.name}</span>
+                  </div>
+                  <div className="ab-test-description">{currentTest.description}</div>
+                </div>
+
+                <div className="ab-test-results">
+                  <table className="variants-table">
+                    <thead>
+                      <tr>
+                        <th>Variant</th>
+                        <th>Queries</th>
+                        <th>Latency</th>
+                        <th>Cost</th>
+                        <th>Quality</th>
+                        <th>Improvement</th>
+                        <th>Confidence</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.from(currentTest.results.values()).map((result) => (
+                        <tr key={result.variantId} className={result.isWinner ? 'winner' : ''}>
+                          <td>
+                            {result.variantName}
+                            {result.isWinner && <span className="winner-badge">🏆 Winner</span>}
+                            {currentTest.variants.find(v => v.id === result.variantId)?.isControl &&
+                             <span className="control-badge">Control</span>}
+                          </td>
+                          <td>{result.metrics.totalQueries}</td>
+                          <td>{result.metrics.averageLatency.toFixed(0)}ms</td>
+                          <td>${result.metrics.averageCost.toFixed(4)}</td>
+                          <td>{(result.metrics.averageQuality * 100).toFixed(0)}%</td>
+                          <td>
+                            {!currentTest.variants.find(v => v.id === result.variantId)?.isControl && (
+                              <div className="improvements">
+                                <div className={result.improvement.cost > 0 ? 'positive' : 'negative'}>
+                                  Cost: {result.improvement.cost > 0 ? '+' : ''}{result.improvement.cost.toFixed(1)}%
+                                </div>
+                                <div className={result.improvement.latency > 0 ? 'positive' : 'negative'}>
+                                  Speed: {result.improvement.latency > 0 ? '+' : ''}{result.improvement.latency.toFixed(1)}%
+                                </div>
+                                <div className={result.improvement.quality > 0 ? 'positive' : 'negative'}>
+                                  Quality: {result.improvement.quality > 0 ? '+' : ''}{result.improvement.quality.toFixed(1)}%
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            <div className="confidence-bar">
+                              <div
+                                className="confidence-fill"
+                                style={{ width: `${(result.confidence * 100).toFixed(0)}%` }}
+                              ></div>
+                              <span className="confidence-text">{(result.confidence * 100).toFixed(0)}%</span>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  {currentTest.status === 'running' && (
+                    <div className="ab-test-hint">
+                      💡 Traffic is being split {currentTest.variants.map(v => `${(v.trafficAllocation * 100).toFixed(0)}%`).join('/')} between variants.
+                      Minimum {currentTest.minimumSampleSize} samples needed per variant for significance.
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="ab-test-empty">
+                <p>No active A/B test. Start a quick test to compare your current configuration with a preset.</p>
+                <p className="ab-test-benefits">
+                  ✓ Statistical significance testing<br/>
+                  ✓ Side-by-side metrics comparison<br/>
+                  ✓ Automatic winner detection<br/>
+                  ✓ Export results for analysis
+                </p>
               </div>
             )}
           </section>
