@@ -742,6 +742,225 @@
   color: var(--text-primary, #ffffff);
 }
 
+/* Local Model Selection */
+.local-model-section {
+  background: var(--bg-secondary, #16213e);
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.model-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.model-card {
+  background: var(--bg-primary, #1a1a2e);
+  border: 2px solid var(--border-color, #2a2a3e);
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.model-card:hover {
+  border-color: var(--accent-color, #4a90e2);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.model-card.selected {
+  border-color: var(--accent-color, #4a90e2);
+  background: var(--accent-bg, rgba(74, 144, 226, 0.1));
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+}
+
+.model-card.unavailable {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.model-card.unavailable:hover {
+  transform: none;
+}
+
+.model-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.model-name-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.model-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary, #ffffff);
+}
+
+.model-size {
+  font-size: 12px;
+  color: var(--text-secondary, #a0a0a0);
+  font-weight: 500;
+}
+
+.active-badge {
+  padding: 3px 8px;
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.model-description {
+  font-size: 13px;
+  color: var(--text-secondary, #a0a0a0);
+  line-height: 1.4;
+}
+
+.model-specialization {
+  display: flex;
+  gap: 6px;
+}
+
+.specialization-badge {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.specialization-badge.general {
+  background: rgba(74, 144, 226, 0.2);
+  color: #4a90e2;
+}
+
+.specialization-badge.code {
+  background: rgba(156, 39, 176, 0.2);
+  color: #9c27b0;
+}
+
+.specialization-badge.reasoning {
+  background: rgba(255, 152, 0, 0.2);
+  color: #ff9800;
+}
+
+.specialization-badge.lightweight {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+}
+
+.model-stats {
+  display: flex;
+  gap: 16px;
+}
+
+.model-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: var(--text-secondary, #a0a0a0);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #ffffff);
+}
+
+.model-strengths {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.strength-tag {
+  padding: 3px 8px;
+  background: var(--bg-hover, #2a2a3e);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text-secondary, #a0a0a0);
+}
+
+.model-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.model-action-button {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid var(--border-color, #3a3a4e);
+}
+
+.model-action-button.primary {
+  background: var(--accent-color, #4a90e2);
+  border-color: var(--accent-color, #4a90e2);
+  color: #ffffff;
+}
+
+.model-action-button.primary:hover {
+  background: #3a7bc8;
+  border-color: #3a7bc8;
+  transform: translateY(-1px);
+}
+
+.model-action-button.danger {
+  background: var(--bg-hover, #2a2a3e);
+  color: #f44336;
+}
+
+.model-action-button.danger:hover {
+  background: rgba(244, 67, 54, 0.2);
+  border-color: #f44336;
+}
+
+.model-action-button.install {
+  background: var(--bg-hover, #2a2a3e);
+  color: var(--text-primary, #ffffff);
+}
+
+.model-action-button.install:hover:not(:disabled) {
+  background: var(--accent-color, #4a90e2);
+  border-color: var(--accent-color, #4a90e2);
+}
+
+.model-action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.model-info-hint {
+  margin-top: 12px;
+  padding: 10px;
+  background: rgba(74, 144, 226, 0.1);
+  border-left: 3px solid var(--accent-color, #4a90e2);
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text-secondary, #a0a0a0);
+}
+
 /* A/B Testing Section */
 .ab-testing-section {
   background: var(--bg-secondary, #16213e);

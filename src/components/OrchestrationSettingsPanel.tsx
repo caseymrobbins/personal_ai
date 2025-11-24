@@ -10,6 +10,7 @@ import { LocalSLMOrchestratorService } from '../services/local-slm-orchestrator.
 import type { OrchestrationPreferences, OrchestrationMetrics } from '../services/local-slm-orchestrator.service';
 import { OrchestrationMetricsHistoryService } from '../services/orchestration-metrics-history.service';
 import { ABTestingService, type ABTest, type ABTestVariant } from '../services/ab-testing.service';
+import { MultiSLMManagerService, type LocalSLMType, type LocalSLMInfo } from '../services/multi-slm-manager.service';
 import { Sparkline, TrendIndicator } from './Sparkline';
 import './OrchestrationSettingsPanel.css';
 
@@ -52,6 +53,11 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
   // A/B Testing
   const [currentTest, setCurrentTest] = useState<ABTest | null>(null);
   const [showABTestDialog, setShowABTestDialog] = useState<boolean>(false);
+
+  // Multi-SLM
+  const [availableModels, setAvailableModels] = useState<LocalSLMInfo[]>([]);
+  const [currentSLM, setCurrentSLM] = useState<LocalSLMType>('phi-3');
+  const [installingModel, setInstallingModel] = useState<LocalSLMType | null>(null);
 
   // Default presets
   const defaultPresets: OrchestrationPreset[] = [
@@ -156,6 +162,7 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
       // Load metrics immediately
       loadMetrics();
       loadCurrentTest();
+      loadAvailableModels();
 
       // Refresh every 2 seconds
       const interval = setInterval(() => {
@@ -417,6 +424,78 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Failed to export A/B test results:', error);
+    }
+  };
+
+  const loadAvailableModels = () => {
+    try {
+      const slmManager = MultiSLMManagerService.getInstance();
+      const models = slmManager.getAvailableModels();
+      const current = slmManager.getCurrentSLM();
+      setAvailableModels(models);
+      setCurrentSLM(current);
+    } catch (error) {
+      console.error('Failed to load available models:', error);
+    }
+  };
+
+  const selectSLM = (modelId: LocalSLMType) => {
+    try {
+      const slmManager = MultiSLMManagerService.getInstance();
+      const success = slmManager.setCurrentSLM(modelId);
+      if (success) {
+        setCurrentSLM(modelId);
+        const modelInfo = slmManager.getModelInfo(modelId);
+        alert(`Switched to ${modelInfo?.name}! This model will be used for future queries.`);
+      } else {
+        alert('Failed to switch model. Please ensure the model is installed.');
+      }
+    } catch (error) {
+      console.error('Failed to select SLM:', error);
+      alert('Failed to switch model. See console for details.');
+    }
+  };
+
+  const installSLM = async (modelId: LocalSLMType) => {
+    try {
+      setInstallingModel(modelId);
+      const slmManager = MultiSLMManagerService.getInstance();
+      const success = await slmManager.installModel(modelId);
+
+      if (success) {
+        loadAvailableModels();
+        const modelInfo = slmManager.getModelInfo(modelId);
+        alert(`Successfully installed ${modelInfo?.name}!`);
+      } else {
+        alert('Failed to install model. Please try again.');
+      }
+    } catch (error) {
+      console.error('Failed to install SLM:', error);
+      alert('Failed to install model. See console for details.');
+    } finally {
+      setInstallingModel(null);
+    }
+  };
+
+  const uninstallSLM = (modelId: LocalSLMType) => {
+    try {
+      const slmManager = MultiSLMManagerService.getInstance();
+      const modelInfo = slmManager.getModelInfo(modelId);
+
+      if (!confirm(`Uninstall ${modelInfo?.name}? This will free up disk space.`)) {
+        return;
+      }
+
+      const success = slmManager.uninstallModel(modelId);
+      if (success) {
+        loadAvailableModels();
+        alert(`Successfully uninstalled ${modelInfo?.name}`);
+      } else {
+        alert('Failed to uninstall model. Default model cannot be removed.');
+      }
+    } catch (error) {
+      console.error('Failed to uninstall SLM:', error);
+      alert('Failed to uninstall model. See console for details.');
     }
   };
 
@@ -757,6 +836,106 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
                   </div>
                 </div>
               </label>
+            </div>
+          </section>
+
+          {/* Local Model Selection */}
+          <section className="settings-section local-model-section">
+            <h3>🤖 Local Model Selection</h3>
+            <p className="section-description">
+              Choose which local SLM to use for on-device inference
+            </p>
+
+            <div className="model-grid">
+              {availableModels.map((model) => (
+                <div
+                  key={model.id}
+                  className={`model-card ${currentSLM === model.id ? 'selected' : ''} ${!model.available ? 'unavailable' : ''}`}
+                  onClick={() => model.available && selectSLM(model.id)}
+                >
+                  <div className="model-header">
+                    <div className="model-name-section">
+                      <span className="model-name">{model.name}</span>
+                      <span className="model-size">{model.modelSize}</span>
+                    </div>
+                    {currentSLM === model.id && <span className="active-badge">✓ Active</span>}
+                  </div>
+
+                  <div className="model-description">{model.description}</div>
+
+                  <div className="model-specialization">
+                    <span className={`specialization-badge ${model.specialization}`}>
+                      {model.specialization === 'general' && '🎯 General'}
+                      {model.specialization === 'code' && '💻 Code'}
+                      {model.specialization === 'reasoning' && '🧠 Reasoning'}
+                      {model.specialization === 'lightweight' && '⚡ Lightweight'}
+                    </span>
+                  </div>
+
+                  <div className="model-stats">
+                    <div className="model-stat">
+                      <span className="stat-label">Latency</span>
+                      <span className="stat-value">{model.avgLatency}ms</span>
+                    </div>
+                    <div className="model-stat">
+                      <span className="stat-label">Context</span>
+                      <span className="stat-value">{(model.contextWindow / 1024).toFixed(0)}K</span>
+                    </div>
+                  </div>
+
+                  <div className="model-strengths">
+                    {model.strengths.slice(0, 2).map((strength, idx) => (
+                      <span key={idx} className="strength-tag">
+                        {strength}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="model-actions">
+                    {model.available ? (
+                      <>
+                        {currentSLM !== model.id && (
+                          <button
+                            className="model-action-button primary"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              selectSLM(model.id);
+                            }}
+                          >
+                            Switch to {model.name}
+                          </button>
+                        )}
+                        {model.id !== 'phi-3' && (
+                          <button
+                            className="model-action-button danger"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              uninstallSLM(model.id);
+                            }}
+                          >
+                            Uninstall
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <button
+                        className="model-action-button install"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          installSLM(model.id);
+                        }}
+                        disabled={installingModel === model.id}
+                      >
+                        {installingModel === model.id ? 'Installing...' : '📥 Install'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="model-info-hint">
+              💡 Tip: Choose CodeLlama for programming tasks, Llama-3 for complex reasoning, or Gemma for quick responses.
             </div>
           </section>
 
