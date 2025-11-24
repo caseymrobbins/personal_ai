@@ -13,7 +13,7 @@ import type {
   IChatCompletionResponse,
   IChatMessage,
 } from '../modules/adapters/adapter.interface';
-import { AdapterRegistry } from '../modules/adapters/AdapterRegistry';
+import { adapterRegistry } from '../modules/adapters/AdapterRegistry';
 import type { IModuleAdapter } from '../modules/adapters/adapter.interface';
 import { db } from '../db';
 import { responseCacheService } from './response-cache.service';
@@ -103,7 +103,6 @@ export interface OrchestrationMetrics {
  */
 export class LocalSLMOrchestratorService {
   private static instance: LocalSLMOrchestratorService;
-  private adapterRegistry: AdapterRegistry;
   private qualityValidator: QualityGateValidatorService;
   private deduplicationService: RequestDeduplicationService;
   private warmUpService: ModelWarmUpService;
@@ -135,7 +134,6 @@ export class LocalSLMOrchestratorService {
   };
 
   private constructor() {
-    this.adapterRegistry = AdapterRegistry.getInstance();
     this.qualityValidator = QualityGateValidatorService.getInstance();
     this.deduplicationService = RequestDeduplicationService.getInstance();
     this.warmUpService = ModelWarmUpService.getInstance();
@@ -267,7 +265,7 @@ export class LocalSLMOrchestratorService {
     // Ensure model is warm before decision-making
     await this.warmUpService.ensureWarm();
 
-    const localAdapter = this.adapterRegistry.getAdapter('local-guardian');
+    const localAdapter = adapterRegistry.get('local-guardian');
 
     if (!localAdapter || !localAdapter.isReady()) {
       // If local model not ready, delegate to Claude by default
@@ -441,7 +439,7 @@ Respond with JSON only:`;
     // Ensure model is warm before executing (eliminates cold-start latency)
     await this.warmUpService.ensureWarm();
 
-    const localAdapter = this.adapterRegistry.getAdapter('local-guardian');
+    const localAdapter = adapterRegistry.get('local-guardian');
 
     if (!localAdapter || !localAdapter.isReady()) {
       throw new Error('Local adapter not available');
@@ -571,7 +569,7 @@ Respond with JSON only:`;
     abortSignal?: AbortSignal,
     startTime: number
   ): Promise<OrchestrationResult> {
-    const claudeAdapter = this.adapterRegistry.getAdapter('anthropic');
+    const claudeAdapter = adapterRegistry.get('anthropic');
 
     if (!claudeAdapter) {
       throw new Error('Fallback adapter not available');
@@ -604,7 +602,7 @@ Respond with JSON only:`;
       cohere: 'cohere',
     };
 
-    return this.adapterRegistry.getAdapter(adapterMap[model]);
+    return adapterRegistry.get(adapterMap[model]);
   }
 
   /**
