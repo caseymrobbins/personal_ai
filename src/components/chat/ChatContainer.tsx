@@ -18,6 +18,7 @@ import { ChatInterface } from './ChatInterface';
 import { AdapterSelector } from '../AdapterSelector';
 import { ConversationSidebar } from '../ConversationSidebar';
 import CognitiveStatusDashboard from '../CognitiveStatusDashboard';
+import { OrchestrationSettingsPanel } from '../OrchestrationSettingsPanel';
 import { KeyboardShortcutsProvider } from '../shortcuts/KeyboardShortcutsProvider';
 import { dbService, type ChatMessage, type Conversation } from '../../services/db.service';
 import { initializeDatabase } from '../../db/init';
@@ -51,6 +52,7 @@ export function ChatContainer() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showCognitivePanel, setShowCognitivePanel] = useState(false);
+  const [showOrchestrationSettings, setShowOrchestrationSettings] = useState(false);
   const [cacheHit, setCacheHit] = useState(false);
   const [routingRecommendation, setRoutingRecommendation] = useState<string | null>(null);
   const [modelStatus, setModelStatus] = useState<{
@@ -709,9 +711,10 @@ export function ChatContainer() {
             temperature: 0.7,
           };
 
-          // Get user preferences (for now, use defaults)
-          const orchestrationPreferences = {
-            priority: 'balanced' as const, // TODO: Get from user settings
+          // Get user preferences from settings panel (or use defaults)
+          const savedPreferences = (window as any).orchestrationPreferences;
+          const orchestrationPreferences = savedPreferences || {
+            priority: 'balanced' as const,
             privacyLevel: 'moderate' as const,
           };
 
@@ -1143,6 +1146,37 @@ export function ChatContainer() {
           >
             🧠 {showCognitivePanel ? 'Hide' : 'Show'} Dashboard
           </button>
+          {/* Orchestration Settings Toggle */}
+          <button
+            onClick={() => setShowOrchestrationSettings(!showOrchestrationSettings)}
+            style={{
+              padding: '0.5rem 1rem',
+              background: showOrchestrationSettings
+                ? 'linear-gradient(135deg, #4a90e2 0%, #357abd 100%)'
+                : 'rgba(74, 144, 226, 0.1)',
+              color: showOrchestrationSettings ? 'white' : '#4a90e2',
+              border: showOrchestrationSettings ? 'none' : '1px solid rgba(74, 144, 226, 0.3)',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={(e) => {
+              if (!showOrchestrationSettings) {
+                e.currentTarget.style.background = 'rgba(74, 144, 226, 0.15)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!showOrchestrationSettings) {
+                e.currentTarget.style.background = 'rgba(74, 144, 226, 0.1)';
+              }
+            }}
+            title="Configure hybrid orchestration settings"
+          >
+            ⚙️ Orchestration
+          </button>
         </div>
 
         {/* Smart Routing Recommendation Banner */}
@@ -1238,6 +1272,12 @@ export function ChatContainer() {
           )}
         </div>
       </div>
+
+      {/* Orchestration Settings Panel */}
+      <OrchestrationSettingsPanel
+        isOpen={showOrchestrationSettings}
+        onClose={() => setShowOrchestrationSettings(false)}
+      />
     </div>
   );
 }
