@@ -13,7 +13,7 @@
  * Sprint 4: Conversation Management
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ChatInterface } from './ChatInterface';
 import { AdapterSelector } from '../AdapterSelector';
 import { ConversationSidebar } from '../ConversationSidebar';
@@ -433,7 +433,7 @@ export function ChatContainer() {
           timestamp: Date.now(),
         };
 
-        setMessages(prev => [...prev, userMessage]);
+        setMessages((prev: ChatMessage[]) => [...prev, userMessage]);
 
         // Phase 2: Record user message to memory bridge (async, non-blocking)
         try {
@@ -534,7 +534,7 @@ export function ChatContainer() {
               timestamp: Date.now(),
             };
 
-            setMessages(prev => [...prev, assistantMessage]);
+            setMessages((prev: ChatMessage[]) => [...prev, assistantMessage]);
 
             // Announce cached response to screen readers
             accessibilityService.announce('Response retrieved from cache', 'polite');
@@ -545,7 +545,7 @@ export function ChatContainer() {
                 currentConversation.id,
                 'assistant',
                 cachedResponse,
-                { moduleUsed: selectedAdapterId, cached: true }
+                { moduleUsed: selectedAdapterId }
               );
             } catch (error) {
               console.warn('[ChatContainer] Failed to record cached message to memory bridge:', error);
@@ -661,7 +661,7 @@ export function ChatContainer() {
           });
 
           // Show to user
-          setMessages(prev => [...prev, socraticMessage]);
+          setMessages((prev: ChatMessage[]) => [...prev, socraticMessage]);
 
           console.log(`[ChatContainer] Socratic guidance: ${socraticPrompt.type}`);
         }
@@ -913,7 +913,7 @@ export function ChatContainer() {
           timestamp: Date.now(),
         };
 
-        setMessages(prev => [...prev, assistantMessage]);
+        setMessages((prev: ChatMessage[]) => [...prev, assistantMessage]);
         console.log('[ChatContainer] ✅ Response received and saved');
 
         // Phase 2: Record agent message to memory bridge
@@ -967,7 +967,7 @@ export function ChatContainer() {
             timestamp: Date.now(),
           };
 
-          setMessages(prev => [...prev, abortMessage]);
+          setMessages((prev: ChatMessage[]) => [...prev, abortMessage]);
 
           // Announce request stopped
           accessibilityService.announce('Request stopped by user', 'assertive');
@@ -983,7 +983,7 @@ export function ChatContainer() {
             timestamp: Date.now(),
           };
 
-          setMessages(prev => [...prev, errorMessage]);
+          setMessages((prev: ChatMessage[]) => [...prev, errorMessage]);
 
           // Announce error
           accessibilityService.announce(`Error: ${error instanceof Error ? error.message : 'Failed to get response'}`, 'assertive');
@@ -1133,12 +1133,12 @@ export function ChatContainer() {
               transition: 'all 0.2s ease',
               whiteSpace: 'nowrap',
             }}
-            onMouseEnter={(e) => {
+            onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
               if (!showCognitivePanel) {
                 e.currentTarget.style.background = 'rgba(102, 126, 234, 0.15)';
               }
             }}
-            onMouseLeave={(e) => {
+            onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
               if (!showCognitivePanel) {
                 e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
               }
