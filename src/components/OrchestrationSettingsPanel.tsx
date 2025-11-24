@@ -8,6 +8,8 @@
 import { useState, useEffect } from 'react';
 import { LocalSLMOrchestratorService } from '../services/local-slm-orchestrator.service';
 import type { OrchestrationPreferences, OrchestrationMetrics } from '../services/local-slm-orchestrator.service';
+import { OrchestrationMetricsHistoryService } from '../services/orchestration-metrics-history.service';
+import { Sparkline, TrendIndicator } from './Sparkline';
 import './OrchestrationSettingsPanel.css';
 
 interface OrchestrationSettingsPanelProps {
@@ -26,6 +28,7 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
   // Metrics
   const [metrics, setMetrics] = useState<OrchestrationMetrics | null>(null);
   const [metricsRefreshInterval, setMetricsRefreshInterval] = useState<NodeJS.Timeout | null>(null);
+  const [historicalData, setHistoricalData] = useState<any>(null);
 
   // Load preferences from localStorage on mount
   useEffect(() => {
@@ -84,8 +87,50 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
       const orchestrator = LocalSLMOrchestratorService.getInstance();
       const currentMetrics = orchestrator.getMetrics();
       setMetrics(currentMetrics);
+
+      // Record snapshot to history
+      const historyService = OrchestrationMetricsHistoryService.getInstance();
+      historyService.recordSnapshot(currentMetrics);
+
+      // Load historical data for sparklines
+      const summary = historyService.getSummary();
+      setHistoricalData(summary);
     } catch (error) {
       console.error('Failed to load orchestration metrics:', error);
+    }
+  };
+
+  const exportMetricsJSON = () => {
+    try {
+      const historyService = OrchestrationMetricsHistoryService.getInstance();
+      const json = historyService.exportJSON();
+
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `orchestration-metrics-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to export metrics:', error);
+    }
+  };
+
+  const exportMetricsCSV = () => {
+    try {
+      const historyService = OrchestrationMetricsHistoryService.getInstance();
+      const csv = historyService.exportCSV();
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `orchestration-metrics-${Date.now()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to export metrics:', error);
     }
   };
 
@@ -348,9 +393,17 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
           <section className="settings-section metrics-section">
             <div className="section-header">
               <h3>📊 Performance Metrics</h3>
-              <button className="reset-button" onClick={resetMetrics}>
-                Reset
-              </button>
+              <div className="header-buttons">
+                <button className="export-button" onClick={exportMetricsJSON} title="Export as JSON">
+                  📥 JSON
+                </button>
+                <button className="export-button" onClick={exportMetricsCSV} title="Export as CSV">
+                  📥 CSV
+                </button>
+                <button className="reset-button" onClick={resetMetrics}>
+                  Reset
+                </button>
+              </div>
             </div>
 
             {metrics ? (
@@ -360,6 +413,22 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
                   <div className="metric-content">
                     <div className="metric-value">{localHandlingPercentage}%</div>
                     <div className="metric-label">Local Handling</div>
+                    {historicalData?.hourly?.localHandlingTrend && historicalData.hourly.localHandlingTrend.length > 1 && (
+                      <div className="metric-sparkline">
+                        <Sparkline
+                          data={historicalData.hourly.localHandlingTrend}
+                          width={100}
+                          height={20}
+                          strokeWidth={2}
+                          color="#4caf50"
+                          fillColor="rgba(76, 175, 80, 0.1)"
+                        />
+                        <TrendIndicator
+                          value={historicalData.hourly.localHandlingGrowth || 0}
+                          className="metric-trend"
+                        />
+                      </div>
+                    )}
                     <div className="metric-target">Target: 80%+</div>
                   </div>
                 </div>
@@ -369,6 +438,22 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
                   <div className="metric-content">
                     <div className="metric-value">{metrics.averageLatency.toFixed(0)}ms</div>
                     <div className="metric-label">Avg Latency</div>
+                    {historicalData?.hourly?.avgLatencyTrend && historicalData.hourly.avgLatencyTrend.length > 1 && (
+                      <div className="metric-sparkline">
+                        <Sparkline
+                          data={historicalData.hourly.avgLatencyTrend}
+                          width={100}
+                          height={20}
+                          strokeWidth={2}
+                          color="#2196f3"
+                          fillColor="rgba(33, 150, 243, 0.1)"
+                        />
+                        <TrendIndicator
+                          value={-(historicalData.hourly.avgLatencyGrowth || 0)}
+                          className="metric-trend"
+                        />
+                      </div>
+                    )}
                     <div className="metric-target">Target: &lt;800ms</div>
                   </div>
                 </div>
@@ -378,6 +463,22 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
                   <div className="metric-content">
                     <div className="metric-value">${avgCostPerQuery.toFixed(4)}</div>
                     <div className="metric-label">Avg Cost</div>
+                    {historicalData?.hourly?.avgCostTrend && historicalData.hourly.avgCostTrend.length > 1 && (
+                      <div className="metric-sparkline">
+                        <Sparkline
+                          data={historicalData.hourly.avgCostTrend}
+                          width={100}
+                          height={20}
+                          strokeWidth={2}
+                          color="#ff9800"
+                          fillColor="rgba(255, 152, 0, 0.1)"
+                        />
+                        <TrendIndicator
+                          value={-(historicalData.hourly.avgCostGrowth || 0)}
+                          className="metric-trend"
+                        />
+                      </div>
+                    )}
                     <div className="metric-target">Target: &lt;$0.001</div>
                   </div>
                 </div>
@@ -387,6 +488,18 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
                   <div className="metric-content">
                     <div className="metric-value">{metrics.totalQueries}</div>
                     <div className="metric-label">Total Queries</div>
+                    {historicalData?.hourly?.totalQueriesTrend && historicalData.hourly.totalQueriesTrend.length > 1 && (
+                      <div className="metric-sparkline">
+                        <Sparkline
+                          data={historicalData.hourly.totalQueriesTrend}
+                          width={100}
+                          height={20}
+                          strokeWidth={2}
+                          color="#9c27b0"
+                          fillColor="rgba(156, 39, 176, 0.1)"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -410,6 +523,22 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
                       {(metrics.qualityGatePassRate * 100).toFixed(0)}%
                     </div>
                     <div className="metric-label">Quality Pass Rate</div>
+                    {historicalData?.hourly?.qualityPassRateTrend && historicalData.hourly.qualityPassRateTrend.length > 1 && (
+                      <div className="metric-sparkline">
+                        <Sparkline
+                          data={historicalData.hourly.qualityPassRateTrend}
+                          width={100}
+                          height={20}
+                          strokeWidth={2}
+                          color="#4caf50"
+                          fillColor="rgba(76, 175, 80, 0.1)"
+                        />
+                        <TrendIndicator
+                          value={historicalData.hourly.qualityPassRateGrowth || 0}
+                          className="metric-trend"
+                        />
+                      </div>
+                    )}
                     <div className="metric-target">Target: ≥70%</div>
                   </div>
                 </div>
