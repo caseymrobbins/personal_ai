@@ -347,6 +347,85 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
     (window as any).orchestrationPreferences = getPreferences();
   }, [priority, privacyLevel, maxCostPerQuery, maxLatency, minConfidence]);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const modifierKey = isMac ? e.metaKey : e.ctrlKey;
+
+      // When panel is open
+      if (isOpen) {
+        // ESC - Close panel
+        if (e.key === 'Escape' && !showSavePresetDialog) {
+          e.preventDefault();
+          onClose();
+          return;
+        }
+
+        // ESC - Close save dialog
+        if (e.key === 'Escape' && showSavePresetDialog) {
+          e.preventDefault();
+          setShowSavePresetDialog(false);
+          setNewPresetName('');
+          return;
+        }
+
+        // Number keys 1-5 - Quick load presets
+        if (!showSavePresetDialog && e.key >= '1' && e.key <= '5') {
+          e.preventDefault();
+          const presetIndex = parseInt(e.key) - 1;
+          if (presetIndex < presets.length) {
+            loadPreset(presets[presetIndex].name);
+          }
+          return;
+        }
+
+        // Ctrl/Cmd + Shift + E - Export metrics
+        if (modifierKey && e.shiftKey && e.key === 'E') {
+          e.preventDefault();
+          exportMetricsJSON();
+          return;
+        }
+
+        // Ctrl/Cmd + Shift + S - Save preset
+        if (modifierKey && e.shiftKey && e.key === 'S') {
+          e.preventDefault();
+          setShowSavePresetDialog(true);
+          return;
+        }
+
+        // Ctrl/Cmd + Shift + I - Import presets
+        if (modifierKey && e.shiftKey && e.key === 'I') {
+          e.preventDefault();
+          importPresets();
+          return;
+        }
+
+        // Ctrl/Cmd + Shift + R - Reset metrics
+        if (modifierKey && e.shiftKey && e.key === 'R') {
+          e.preventDefault();
+          if (confirm('Reset all metrics? This cannot be undone.')) {
+            resetMetrics();
+          }
+          return;
+        }
+      }
+
+      // Ctrl/Cmd + , - Open settings (works globally)
+      if (modifierKey && e.key === ',') {
+        e.preventDefault();
+        if (!isOpen) {
+          // Trigger open via parent - we'll need to expose this
+          // For now, just log
+          console.log('Keyboard shortcut: Open settings panel');
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, showSavePresetDialog, presets, selectedPreset]);
+
   if (!isOpen) {
     return null;
   }
@@ -902,6 +981,40 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
               <li>⚡ <strong>Fast:</strong> Local responses in &lt;300ms</li>
               <li>✅ <strong>Quality Gates:</strong> Automatic cloud escalation when needed</li>
             </ul>
+          </section>
+
+          {/* Keyboard Shortcuts */}
+          <section className="settings-section keyboard-shortcuts-section">
+            <h3>⌨️ Keyboard Shortcuts</h3>
+            <div className="shortcuts-grid">
+              <div className="shortcut-item">
+                <kbd className="kbd">Esc</kbd>
+                <span>Close panel/dialog</span>
+              </div>
+              <div className="shortcut-item">
+                <kbd className="kbd">1</kbd>-<kbd className="kbd">5</kbd>
+                <span>Quick load preset</span>
+              </div>
+              <div className="shortcut-item">
+                <kbd className="kbd">Ctrl</kbd>+<kbd className="kbd">Shift</kbd>+<kbd className="kbd">E</kbd>
+                <span>Export metrics</span>
+              </div>
+              <div className="shortcut-item">
+                <kbd className="kbd">Ctrl</kbd>+<kbd className="kbd">Shift</kbd>+<kbd className="kbd">S</kbd>
+                <span>Save preset</span>
+              </div>
+              <div className="shortcut-item">
+                <kbd className="kbd">Ctrl</kbd>+<kbd className="kbd">Shift</kbd>+<kbd className="kbd">I</kbd>
+                <span>Import presets</span>
+              </div>
+              <div className="shortcut-item">
+                <kbd className="kbd">Ctrl</kbd>+<kbd className="kbd">Shift</kbd>+<kbd className="kbd">R</kbd>
+                <span>Reset metrics</span>
+              </div>
+            </div>
+            <p className="shortcuts-note">
+              💡 Use <kbd className="kbd">Cmd</kbd> instead of <kbd className="kbd">Ctrl</kbd> on Mac
+            </p>
           </section>
         </div>
       </div>
