@@ -10,7 +10,7 @@
  * @module QualityGateValidatorService
  */
 
-import type { IChatCompletionRequest, IChatMessage } from '@/modules/adapters/adapter.interface';
+import type { IChatCompletionRequest, IChatMessage } from '../modules/adapters/adapter.interface';
 
 /**
  * Quality validation result

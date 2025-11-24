@@ -12,11 +12,11 @@ import type {
   IChatCompletionRequest,
   IChatCompletionResponse,
   IChatMessage,
-} from '@/modules/adapters/adapter.interface';
-import { AdapterRegistry } from '@/modules/adapters/AdapterRegistry';
-import type { IModuleAdapter } from '@/modules/adapters/adapter.interface';
-import { db } from '@/db';
-import { ResponseCacheService } from './response-cache.service';
+} from '../modules/adapters/adapter.interface';
+import { AdapterRegistry } from '../modules/adapters/AdapterRegistry';
+import type { IModuleAdapter } from '../modules/adapters/adapter.interface';
+import { db } from '../db';
+import { responseCacheService } from './response-cache.service';
 import { QualityGateValidatorService } from './quality-gate-validator.service';
 
 /**
@@ -101,7 +101,6 @@ export interface OrchestrationMetrics {
 export class LocalSLMOrchestratorService {
   private static instance: LocalSLMOrchestratorService;
   private adapterRegistry: AdapterRegistry;
-  private cacheService: ResponseCacheService;
   private qualityValidator: QualityGateValidatorService;
   private metrics: OrchestrationMetrics;
 
@@ -132,7 +131,6 @@ export class LocalSLMOrchestratorService {
 
   private constructor() {
     this.adapterRegistry = AdapterRegistry.getInstance();
-    this.cacheService = ResponseCacheService.getInstance();
     this.qualityValidator = QualityGateValidatorService.getInstance();
     this.metrics = this.initializeMetrics();
   }
@@ -648,12 +646,12 @@ Respond with JSON only:`;
    */
   private async checkCache(request: IChatCompletionRequest): Promise<string | null> {
     const query = this.extractUserQuery(request.messages);
-    return await this.cacheService.get(query);
+    return await responseCacheService.get(query);
   }
 
   private async cacheResponse(request: IChatCompletionRequest, response: string): Promise<void> {
     const query = this.extractUserQuery(request.messages);
-    await this.cacheService.set(query, response);
+    await responseCacheService.set(query, response);
   }
 
   /**
