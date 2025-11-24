@@ -17,6 +17,17 @@ interface OrchestrationSettingsPanelProps {
   onClose: () => void;
 }
 
+interface OrchestrationPreset {
+  name: string;
+  priority: 'cost' | 'quality' | 'latency' | 'balanced';
+  privacyLevel: 'strict' | 'moderate' | 'relaxed';
+  maxCostPerQuery: number;
+  maxLatency: number;
+  minConfidence: number;
+  isDefault?: boolean;
+  createdAt?: number;
+}
+
 export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSettingsPanelProps) {
   // Orchestration preferences
   const [priority, setPriority] = useState<'cost' | 'quality' | 'latency' | 'balanced'>('balanced');
@@ -30,8 +41,78 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
   const [metricsRefreshInterval, setMetricsRefreshInterval] = useState<NodeJS.Timeout | null>(null);
   const [historicalData, setHistoricalData] = useState<any>(null);
 
-  // Load preferences from localStorage on mount
+  // Presets
+  const [presets, setPresets] = useState<OrchestrationPreset[]>([]);
+  const [selectedPreset, setSelectedPreset] = useState<string>('balanced');
+  const [showSavePresetDialog, setShowSavePresetDialog] = useState<boolean>(false);
+  const [newPresetName, setNewPresetName] = useState<string>('');
+
+  // Default presets
+  const defaultPresets: OrchestrationPreset[] = [
+    {
+      name: 'balanced',
+      priority: 'balanced',
+      privacyLevel: 'moderate',
+      maxCostPerQuery: 0.01,
+      maxLatency: 3000,
+      minConfidence: 0.6,
+      isDefault: true,
+    },
+    {
+      name: 'cost-saver',
+      priority: 'cost',
+      privacyLevel: 'moderate',
+      maxCostPerQuery: 0.001,
+      maxLatency: 5000,
+      minConfidence: 0.4,
+      isDefault: true,
+    },
+    {
+      name: 'quality-first',
+      priority: 'quality',
+      privacyLevel: 'relaxed',
+      maxCostPerQuery: 0.05,
+      maxLatency: 10000,
+      minConfidence: 0.8,
+      isDefault: true,
+    },
+    {
+      name: 'speed-demon',
+      priority: 'latency',
+      privacyLevel: 'moderate',
+      maxCostPerQuery: 0.01,
+      maxLatency: 1000,
+      minConfidence: 0.5,
+      isDefault: true,
+    },
+    {
+      name: 'privacy-paranoid',
+      priority: 'balanced',
+      privacyLevel: 'strict',
+      maxCostPerQuery: 0.01,
+      maxLatency: 3000,
+      minConfidence: 0.6,
+      isDefault: true,
+    },
+  ];
+
+  // Load presets and preferences from localStorage on mount
   useEffect(() => {
+    // Load custom presets
+    const savedPresets = localStorage.getItem('orchestrationPresets');
+    if (savedPresets) {
+      try {
+        const customPresets = JSON.parse(savedPresets);
+        setPresets([...defaultPresets, ...customPresets]);
+      } catch (error) {
+        console.error('Failed to load presets:', error);
+        setPresets(defaultPresets);
+      }
+    } else {
+      setPresets(defaultPresets);
+    }
+
+    // Load current preferences
     const savedPreferences = localStorage.getItem('orchestrationPreferences');
     if (savedPreferences) {
       try {
@@ -41,6 +122,7 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
         setMaxCostPerQuery(prefs.maxCostPerQuery || 0.01);
         setMaxLatency(prefs.maxLatency || 3000);
         setMinConfidence(prefs.minConfidence || 0.6);
+        setSelectedPreset(prefs.selectedPreset || 'balanced');
       } catch (error) {
         console.error('Failed to load orchestration preferences:', error);
       }
@@ -55,9 +137,10 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
       maxCostPerQuery,
       maxLatency,
       minConfidence,
+      selectedPreset,
     };
     localStorage.setItem('orchestrationPreferences', JSON.stringify(preferences));
-  }, [priority, privacyLevel, maxCostPerQuery, maxLatency, minConfidence]);
+  }, [priority, privacyLevel, maxCostPerQuery, maxLatency, minConfidence, selectedPreset]);
 
   // Load and refresh metrics when panel is open
   useEffect(() => {
@@ -134,6 +217,111 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
     }
   };
 
+  const loadPreset = (presetName: string) => {
+    const preset = presets.find((p) => p.name === presetName);
+    if (preset) {
+      setPriority(preset.priority);
+      setPrivacyLevel(preset.privacyLevel);
+      setMaxCostPerQuery(preset.maxCostPerQuery);
+      setMaxLatency(preset.maxLatency);
+      setMinConfidence(preset.minConfidence);
+      setSelectedPreset(presetName);
+    }
+  };
+
+  const saveCurrentAsPreset = () => {
+    if (!newPresetName.trim()) {
+      alert('Please enter a preset name');
+      return;
+    }
+
+    const newPreset: OrchestrationPreset = {
+      name: newPresetName.toLowerCase().replace(/\s+/g, '-'),
+      priority,
+      privacyLevel,
+      maxCostPerQuery,
+      maxLatency,
+      minConfidence,
+      isDefault: false,
+      createdAt: Date.now(),
+    };
+
+    const customPresets = presets.filter((p) => !p.isDefault);
+    const updatedCustomPresets = [...customPresets, newPreset];
+
+    localStorage.setItem('orchestrationPresets', JSON.stringify(updatedCustomPresets));
+    setPresets([...defaultPresets, ...updatedCustomPresets]);
+    setSelectedPreset(newPreset.name);
+    setShowSavePresetDialog(false);
+    setNewPresetName('');
+  };
+
+  const deletePreset = (presetName: string) => {
+    const preset = presets.find((p) => p.name === presetName);
+    if (preset?.isDefault) {
+      alert('Cannot delete default presets');
+      return;
+    }
+
+    const customPresets = presets.filter((p) => !p.isDefault && p.name !== presetName);
+    localStorage.setItem('orchestrationPresets', JSON.stringify(customPresets));
+    setPresets([...defaultPresets, ...customPresets]);
+
+    if (selectedPreset === presetName) {
+      loadPreset('balanced');
+    }
+  };
+
+  const exportPresets = () => {
+    try {
+      const customPresets = presets.filter((p) => !p.isDefault);
+      const json = JSON.stringify(customPresets, null, 2);
+
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `orchestration-presets-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to export presets:', error);
+    }
+  };
+
+  const importPresets = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const importedPresets = JSON.parse(event.target?.result as string);
+          if (!Array.isArray(importedPresets)) {
+            alert('Invalid preset file format');
+            return;
+          }
+
+          const customPresets = presets.filter((p) => !p.isDefault);
+          const mergedPresets = [...customPresets, ...importedPresets];
+
+          localStorage.setItem('orchestrationPresets', JSON.stringify(mergedPresets));
+          setPresets([...defaultPresets, ...mergedPresets]);
+          alert(`Successfully imported ${importedPresets.length} preset(s)`);
+        } catch (error) {
+          console.error('Failed to import presets:', error);
+          alert('Failed to import presets. Please check the file format.');
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
   const resetMetrics = () => {
     try {
       const orchestrator = LocalSLMOrchestratorService.getInstance();
@@ -183,6 +371,88 @@ export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSet
         </div>
 
         <div className="settings-content">
+          {/* Preset Management */}
+          <section className="settings-section preset-section">
+            <div className="section-header">
+              <h3>🎨 Configuration Presets</h3>
+              <div className="header-buttons">
+                <button className="preset-button" onClick={() => setShowSavePresetDialog(true)} title="Save current settings as preset">
+                  💾 Save
+                </button>
+                <button className="preset-button" onClick={exportPresets} title="Export custom presets">
+                  📤 Export
+                </button>
+                <button className="preset-button" onClick={importPresets} title="Import presets">
+                  📥 Import
+                </button>
+              </div>
+            </div>
+            <p className="section-description">
+              Quick access to pre-configured settings for different use cases
+            </p>
+
+            <div className="preset-grid">
+              {presets.map((preset) => (
+                <div
+                  key={preset.name}
+                  className={`preset-card ${selectedPreset === preset.name ? 'selected' : ''}`}
+                  onClick={() => loadPreset(preset.name)}
+                >
+                  <div className="preset-header">
+                    <span className="preset-name">
+                      {preset.name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                    </span>
+                    {!preset.isDefault && (
+                      <button
+                        className="delete-preset-button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Delete preset "${preset.name}"?`)) {
+                            deletePreset(preset.name);
+                          }
+                        }}
+                        title="Delete preset"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                  <div className="preset-details">
+                    <div className="preset-badge">{preset.priority}</div>
+                    <div className="preset-badge">{preset.privacyLevel}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {showSavePresetDialog && (
+              <div className="save-preset-dialog">
+                <div className="dialog-content">
+                  <h4>Save Current Configuration</h4>
+                  <input
+                    type="text"
+                    placeholder="Enter preset name (e.g., My Custom Setup)"
+                    value={newPresetName}
+                    onChange={(e) => setNewPresetName(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && saveCurrentAsPreset()}
+                    autoFocus
+                  />
+                  <div className="dialog-buttons">
+                    <button className="dialog-button primary" onClick={saveCurrentAsPreset}>
+                      Save
+                    </button>
+                    <button className="dialog-button" onClick={() => {
+                      setShowSavePresetDialog(false);
+                      setNewPresetName('');
+                    }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
+
           {/* Priority Settings */}
           <section className="settings-section">
             <h3>⚖️ Routing Priority</h3>

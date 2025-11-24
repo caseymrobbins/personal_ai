@@ -112,6 +112,184 @@
   color: var(--text-secondary, #a0a0a0);
 }
 
+/* Preset Section */
+.preset-section {
+  background: var(--bg-secondary, #16213e);
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.preset-card {
+  background: var(--bg-primary, #1a1a2e);
+  border: 2px solid var(--border-color, #2a2a3e);
+  border-radius: 10px;
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.preset-card:hover {
+  border-color: var(--accent-color, #4a90e2);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.preset-card.selected {
+  border-color: var(--accent-color, #4a90e2);
+  background: var(--accent-bg, rgba(74, 144, 226, 0.1));
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+}
+
+.preset-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.preset-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #ffffff);
+}
+
+.delete-preset-button {
+  background: none;
+  border: none;
+  color: var(--text-secondary, #a0a0a0);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  line-height: 1;
+}
+
+.delete-preset-button:hover {
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+}
+
+.preset-details {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.preset-badge {
+  font-size: 11px;
+  padding: 3px 8px;
+  background: var(--bg-hover, #2a2a3e);
+  border-radius: 4px;
+  color: var(--text-secondary, #a0a0a0);
+  text-transform: capitalize;
+}
+
+.preset-button {
+  padding: 6px 12px;
+  background: var(--bg-hover, #2a2a3e);
+  border: 1px solid var(--border-color, #3a3a4e);
+  border-radius: 6px;
+  color: var(--text-primary, #ffffff);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.preset-button:hover {
+  background: var(--accent-color, #4a90e2);
+  border-color: var(--accent-color, #4a90e2);
+  transform: translateY(-1px);
+}
+
+.save-preset-dialog {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.dialog-content {
+  background: var(--bg-primary, #1a1a2e);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.3s ease-out;
+}
+
+.dialog-content h4 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary, #ffffff);
+}
+
+.dialog-content input {
+  width: 100%;
+  padding: 12px;
+  background: var(--bg-secondary, #16213e);
+  border: 2px solid var(--border-color, #2a2a3e);
+  border-radius: 8px;
+  color: var(--text-primary, #ffffff);
+  font-size: 14px;
+  margin-bottom: 16px;
+  box-sizing: border-box;
+}
+
+.dialog-content input:focus {
+  outline: none;
+  border-color: var(--accent-color, #4a90e2);
+}
+
+.dialog-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.dialog-button {
+  padding: 10px 20px;
+  background: var(--bg-hover, #2a2a3e);
+  border: 1px solid var(--border-color, #3a3a4e);
+  border-radius: 8px;
+  color: var(--text-primary, #ffffff);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dialog-button:hover {
+  background: var(--bg-secondary, #16213e);
+  transform: translateY(-1px);
+}
+
+.dialog-button.primary {
+  background: var(--accent-color, #4a90e2);
+  border-color: var(--accent-color, #4a90e2);
+}
+
+.dialog-button.primary:hover {
+  background: #3a7bc8;
+  border-color: #3a7bc8;
+}
+
 /* Radio Groups */
 .radio-group {
   display: flex;
