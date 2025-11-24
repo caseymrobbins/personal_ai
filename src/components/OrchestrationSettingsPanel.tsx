@@ -1,0 +1,1426 @@
+/**
+ * Orchestration Settings Panel
+ *
+ * UI component for configuring hybrid-first orchestrator preferences.
+ * Allows users to control routing behavior, privacy settings, and view metrics.
+ */
+
+import { useState, useEffect } from 'react';
+import { LocalSLMOrchestratorService } from '../services/local-slm-orchestrator.service';
+import type { OrchestrationPreferences, OrchestrationMetrics } from '../services/local-slm-orchestrator.service';
+import { OrchestrationMetricsHistoryService } from '../services/orchestration-metrics-history.service';
+import { ABTestingService, type ABTest, type ABTestVariant } from '../services/ab-testing.service';
+import { MultiSLMManagerService, type LocalSLMType, type LocalSLMInfo } from '../services/multi-slm-manager.service';
+import { Sparkline, TrendIndicator } from './Sparkline';
+import './OrchestrationSettingsPanel.css';
+
+interface OrchestrationSettingsPanelProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+interface OrchestrationPreset {
+  name: string;
+  priority: 'cost' | 'quality' | 'latency' | 'balanced';
+  privacyLevel: 'strict' | 'moderate' | 'relaxed';
+  maxCostPerQuery: number;
+  maxLatency: number;
+  minConfidence: number;
+  isDefault?: boolean;
+  createdAt?: number;
+}
+
+export function OrchestrationSettingsPanel({ isOpen, onClose }: OrchestrationSettingsPanelProps) {
+  // Orchestration preferences
+  const [priority, setPriority] = useState<'cost' | 'quality' | 'latency' | 'balanced'>('balanced');
+  const [privacyLevel, setPrivacyLevel] = useState<'strict' | 'moderate' | 'relaxed'>('moderate');
+  const [maxCostPerQuery, setMaxCostPerQuery] = useState<number>(0.01); // $0.01
+  const [maxLatency, setMaxLatency] = useState<number>(3000); // 3 seconds
+  const [minConfidence, setMinConfidence] = useState<number>(0.6); // 60%
+  const [enableStreaming, setEnableStreaming] = useState<boolean>(true); // Enable streaming hybrid
+
+  // Metrics
+  const [metrics, setMetrics] = useState<OrchestrationMetrics | null>(null);
+  const [metricsRefreshInterval, setMetricsRefreshInterval] = useState<NodeJS.Timeout | null>(null);
+  const [historicalData, setHistoricalData] = useState<any>(null);
+
+  // Presets
+  const [presets, setPresets] = useState<OrchestrationPreset[]>([]);
+  const [selectedPreset, setSelectedPreset] = useState<string>('balanced');
+  const [showSavePresetDialog, setShowSavePresetDialog] = useState<boolean>(false);
+  const [newPresetName, setNewPresetName] = useState<string>('');
+
+  // A/B Testing
+  const [currentTest, setCurrentTest] = useState<ABTest | null>(null);
+  const [showABTestDialog, setShowABTestDialog] = useState<boolean>(false);
+
+  // Multi-SLM
+  const [availableModels, setAvailableModels] = useState<LocalSLMInfo[]>([]);
+  const [currentSLM, setCurrentSLM] = useState<LocalSLMType>('phi-3');
+  const [installingModel, setInstallingModel] = useState<LocalSLMType | null>(null);
+
+  // Default presets
+  const defaultPresets: OrchestrationPreset[] = [
+    {
+      name: 'balanced',
+      priority: 'balanced',
+      privacyLevel: 'moderate',
+      maxCostPerQuery: 0.01,
+      maxLatency: 3000,
+      minConfidence: 0.6,
+      isDefault: true,
+    },
+    {
+      name: 'cost-saver',
+      priority: 'cost',
+      privacyLevel: 'moderate',
+      maxCostPerQuery: 0.001,
+      maxLatency: 5000,
+      minConfidence: 0.4,
+      isDefault: true,
+    },
+    {
+      name: 'quality-first',
+      priority: 'quality',
+      privacyLevel: 'relaxed',
+      maxCostPerQuery: 0.05,
+      maxLatency: 10000,
+      minConfidence: 0.8,
+      isDefault: true,
+    },
+    {
+      name: 'speed-demon',
+      priority: 'latency',
+      privacyLevel: 'moderate',
+      maxCostPerQuery: 0.01,
+      maxLatency: 1000,
+      minConfidence: 0.5,
+      isDefault: true,
+    },
+    {
+      name: 'privacy-paranoid',
+      priority: 'balanced',
+      privacyLevel: 'strict',
+      maxCostPerQuery: 0.01,
+      maxLatency: 3000,
+      minConfidence: 0.6,
+      isDefault: true,
+    },
+  ];
+
+  // Load presets and preferences from localStorage on mount
+  useEffect(() => {
+    // Load custom presets
+    const savedPresets = localStorage.getItem('orchestrationPresets');
+    if (savedPresets) {
+      try {
+        const customPresets = JSON.parse(savedPresets);
+        setPresets([...defaultPresets, ...customPresets]);
+      } catch (error) {
+        console.error('Failed to load presets:', error);
+        setPresets(defaultPresets);
+      }
+    } else {
+      setPresets(defaultPresets);
+    }
+
+    // Load current preferences
+    const savedPreferences = localStorage.getItem('orchestrationPreferences');
+    if (savedPreferences) {
+      try {
+        const prefs = JSON.parse(savedPreferences);
+        setPriority(prefs.priority || 'balanced');
+        setPrivacyLevel(prefs.privacyLevel || 'moderate');
+        setMaxCostPerQuery(prefs.maxCostPerQuery || 0.01);
+        setMaxLatency(prefs.maxLatency || 3000);
+        setMinConfidence(prefs.minConfidence || 0.6);
+        setEnableStreaming(prefs.enableStreaming !== undefined ? prefs.enableStreaming : true);
+        setSelectedPreset(prefs.selectedPreset || 'balanced');
+      } catch (error) {
+        console.error('Failed to load orchestration preferences:', error);
+      }
+    }
+  }, []);
+
+  // Save preferences to localStorage whenever they change
+  useEffect(() => {
+    const preferences = {
+      priority,
+      privacyLevel,
+      maxCostPerQuery,
+      maxLatency,
+      minConfidence,
+      enableStreaming,
+      selectedPreset,
+    };
+    localStorage.setItem('orchestrationPreferences', JSON.stringify(preferences));
+  }, [priority, privacyLevel, maxCostPerQuery, maxLatency, minConfidence, enableStreaming, selectedPreset]);
+
+  // Load and refresh metrics when panel is open
+  useEffect(() => {
+    if (isOpen) {
+      // Load metrics immediately
+      loadMetrics();
+      loadCurrentTest();
+      loadAvailableModels();
+
+      // Refresh every 2 seconds
+      const interval = setInterval(() => {
+        loadMetrics();
+        loadCurrentTest();
+      }, 2000);
+      setMetricsRefreshInterval(interval);
+
+      return () => {
+        if (interval) {
+          clearInterval(interval);
+        }
+      };
+    } else {
+      if (metricsRefreshInterval) {
+        clearInterval(metricsRefreshInterval);
+        setMetricsRefreshInterval(null);
+      }
+    }
+  }, [isOpen]);
+
+  const loadMetrics = () => {
+    try {
+      const orchestrator = LocalSLMOrchestratorService.getInstance();
+      const currentMetrics = orchestrator.getMetrics();
+      setMetrics(currentMetrics);
+
+      // Record snapshot to history
+      const historyService = OrchestrationMetricsHistoryService.getInstance();
+      historyService.recordSnapshot(currentMetrics);
+
+      // Load historical data for sparklines
+      const summary = historyService.getSummary();
+      setHistoricalData(summary);
+    } catch (error) {
+      console.error('Failed to load orchestration metrics:', error);
+    }
+  };
+
+  const exportMetricsJSON = () => {
+    try {
+      const historyService = OrchestrationMetricsHistoryService.getInstance();
+      const json = historyService.exportJSON();
+
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `orchestration-metrics-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to export metrics:', error);
+    }
+  };
+
+  const exportMetricsCSV = () => {
+    try {
+      const historyService = OrchestrationMetricsHistoryService.getInstance();
+      const csv = historyService.exportCSV();
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `orchestration-metrics-${Date.now()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to export metrics:', error);
+    }
+  };
+
+  const loadPreset = (presetName: string) => {
+    const preset = presets.find((p) => p.name === presetName);
+    if (preset) {
+      setPriority(preset.priority);
+      setPrivacyLevel(preset.privacyLevel);
+      setMaxCostPerQuery(preset.maxCostPerQuery);
+      setMaxLatency(preset.maxLatency);
+      setMinConfidence(preset.minConfidence);
+      setSelectedPreset(presetName);
+    }
+  };
+
+  const saveCurrentAsPreset = () => {
+    if (!newPresetName.trim()) {
+      alert('Please enter a preset name');
+      return;
+    }
+
+    const newPreset: OrchestrationPreset = {
+      name: newPresetName.toLowerCase().replace(/\s+/g, '-'),
+      priority,
+      privacyLevel,
+      maxCostPerQuery,
+      maxLatency,
+      minConfidence,
+      isDefault: false,
+      createdAt: Date.now(),
+    };
+
+    const customPresets = presets.filter((p) => !p.isDefault);
+    const updatedCustomPresets = [...customPresets, newPreset];
+
+    localStorage.setItem('orchestrationPresets', JSON.stringify(updatedCustomPresets));
+    setPresets([...defaultPresets, ...updatedCustomPresets]);
+    setSelectedPreset(newPreset.name);
+    setShowSavePresetDialog(false);
+    setNewPresetName('');
+  };
+
+  const deletePreset = (presetName: string) => {
+    const preset = presets.find((p) => p.name === presetName);
+    if (preset?.isDefault) {
+      alert('Cannot delete default presets');
+      return;
+    }
+
+    const customPresets = presets.filter((p) => !p.isDefault && p.name !== presetName);
+    localStorage.setItem('orchestrationPresets', JSON.stringify(customPresets));
+    setPresets([...defaultPresets, ...customPresets]);
+
+    if (selectedPreset === presetName) {
+      loadPreset('balanced');
+    }
+  };
+
+  const exportPresets = () => {
+    try {
+      const customPresets = presets.filter((p) => !p.isDefault);
+      const json = JSON.stringify(customPresets, null, 2);
+
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `orchestration-presets-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to export presets:', error);
+    }
+  };
+
+  const importPresets = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const importedPresets = JSON.parse(event.target?.result as string);
+          if (!Array.isArray(importedPresets)) {
+            alert('Invalid preset file format');
+            return;
+          }
+
+          const customPresets = presets.filter((p) => !p.isDefault);
+          const mergedPresets = [...customPresets, ...importedPresets];
+
+          localStorage.setItem('orchestrationPresets', JSON.stringify(mergedPresets));
+          setPresets([...defaultPresets, ...mergedPresets]);
+          alert(`Successfully imported ${importedPresets.length} preset(s)`);
+        } catch (error) {
+          console.error('Failed to import presets:', error);
+          alert('Failed to import presets. Please check the file format.');
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
+  const resetMetrics = () => {
+    try {
+      const orchestrator = LocalSLMOrchestratorService.getInstance();
+      orchestrator.resetMetrics();
+      loadMetrics();
+    } catch (error) {
+      console.error('Failed to reset metrics:', error);
+    }
+  };
+
+  const loadCurrentTest = () => {
+    try {
+      const abTestingService = ABTestingService.getInstance();
+      const test = abTestingService.getCurrentTest();
+      setCurrentTest(test);
+    } catch (error) {
+      console.error('Failed to load A/B test:', error);
+    }
+  };
+
+  const startQuickABTest = () => {
+    try {
+      const abTestingService = ABTestingService.getInstance();
+
+      // Create two variants: current config vs quality-first
+      const controlVariant: ABTestVariant = {
+        id: 'variant-a',
+        name: 'Current Config (Control)',
+        config: getPreferences(),
+        trafficAllocation: 0.5,
+        isControl: true,
+      };
+
+      const qualityPreset = presets.find((p) => p.name === 'quality-first');
+      const testVariant: ABTestVariant = {
+        id: 'variant-b',
+        name: 'Quality First',
+        config: qualityPreset || getPreferences(),
+        trafficAllocation: 0.5,
+        isControl: false,
+      };
+
+      const test = abTestingService.startTest(
+        'Quick Config Comparison',
+        'Compare current configuration vs quality-first preset',
+        [controlVariant, testVariant],
+        30, // Minimum 30 queries per variant
+        0.05 // 95% confidence
+      );
+
+      setCurrentTest(test);
+      setShowABTestDialog(false);
+      alert('A/B test started! The system will now split traffic between configurations.');
+    } catch (error) {
+      console.error('Failed to start A/B test:', error);
+      alert('Failed to start A/B test. See console for details.');
+    }
+  };
+
+  const stopABTest = () => {
+    try {
+      const abTestingService = ABTestingService.getInstance();
+      const completedTest = abTestingService.completeTest();
+      setCurrentTest(completedTest);
+    } catch (error) {
+      console.error('Failed to stop A/B test:', error);
+    }
+  };
+
+  const exportABTestResults = () => {
+    try {
+      const abTestingService = ABTestingService.getInstance();
+      const json = abTestingService.exportResults();
+
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ab-test-results-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to export A/B test results:', error);
+    }
+  };
+
+  const loadAvailableModels = () => {
+    try {
+      const slmManager = MultiSLMManagerService.getInstance();
+      const models = slmManager.getAvailableModels();
+      const current = slmManager.getCurrentSLM();
+      setAvailableModels(models);
+      setCurrentSLM(current);
+    } catch (error) {
+      console.error('Failed to load available models:', error);
+    }
+  };
+
+  const selectSLM = (modelId: LocalSLMType) => {
+    try {
+      const slmManager = MultiSLMManagerService.getInstance();
+      const success = slmManager.setCurrentSLM(modelId);
+      if (success) {
+        setCurrentSLM(modelId);
+        const modelInfo = slmManager.getModelInfo(modelId);
+        alert(`Switched to ${modelInfo?.name}! This model will be used for future queries.`);
+      } else {
+        alert('Failed to switch model. Please ensure the model is installed.');
+      }
+    } catch (error) {
+      console.error('Failed to select SLM:', error);
+      alert('Failed to switch model. See console for details.');
+    }
+  };
+
+  const installSLM = async (modelId: LocalSLMType) => {
+    try {
+      setInstallingModel(modelId);
+      const slmManager = MultiSLMManagerService.getInstance();
+      const success = await slmManager.installModel(modelId);
+
+      if (success) {
+        loadAvailableModels();
+        const modelInfo = slmManager.getModelInfo(modelId);
+        alert(`Successfully installed ${modelInfo?.name}!`);
+      } else {
+        alert('Failed to install model. Please try again.');
+      }
+    } catch (error) {
+      console.error('Failed to install SLM:', error);
+      alert('Failed to install model. See console for details.');
+    } finally {
+      setInstallingModel(null);
+    }
+  };
+
+  const uninstallSLM = (modelId: LocalSLMType) => {
+    try {
+      const slmManager = MultiSLMManagerService.getInstance();
+      const modelInfo = slmManager.getModelInfo(modelId);
+
+      if (!confirm(`Uninstall ${modelInfo?.name}? This will free up disk space.`)) {
+        return;
+      }
+
+      const success = slmManager.uninstallModel(modelId);
+      if (success) {
+        loadAvailableModels();
+        alert(`Successfully uninstalled ${modelInfo?.name}`);
+      } else {
+        alert('Failed to uninstall model. Default model cannot be removed.');
+      }
+    } catch (error) {
+      console.error('Failed to uninstall SLM:', error);
+      alert('Failed to uninstall model. See console for details.');
+    }
+  };
+
+  const getPreferences = (): OrchestrationPreferences & { enableStreaming: boolean } => {
+    return {
+      priority,
+      privacyLevel,
+      maxCostPerQuery,
+      maxLatency,
+      minConfidence,
+      enableStreaming,
+    };
+  };
+
+  // Make preferences available globally for ChatContainer
+  useEffect(() => {
+    (window as any).orchestrationPreferences = getPreferences();
+  }, [priority, privacyLevel, maxCostPerQuery, maxLatency, minConfidence]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const modifierKey = isMac ? e.metaKey : e.ctrlKey;
+
+      // When panel is open
+      if (isOpen) {
+        // ESC - Close panel
+        if (e.key === 'Escape' && !showSavePresetDialog) {
+          e.preventDefault();
+          onClose();
+          return;
+        }
+
+        // ESC - Close save dialog
+        if (e.key === 'Escape' && showSavePresetDialog) {
+          e.preventDefault();
+          setShowSavePresetDialog(false);
+          setNewPresetName('');
+          return;
+        }
+
+        // Number keys 1-5 - Quick load presets
+        if (!showSavePresetDialog && e.key >= '1' && e.key <= '5') {
+          e.preventDefault();
+          const presetIndex = parseInt(e.key) - 1;
+          if (presetIndex < presets.length) {
+            loadPreset(presets[presetIndex].name);
+          }
+          return;
+        }
+
+        // Ctrl/Cmd + Shift + E - Export metrics
+        if (modifierKey && e.shiftKey && e.key === 'E') {
+          e.preventDefault();
+          exportMetricsJSON();
+          return;
+        }
+
+        // Ctrl/Cmd + Shift + S - Save preset
+        if (modifierKey && e.shiftKey && e.key === 'S') {
+          e.preventDefault();
+          setShowSavePresetDialog(true);
+          return;
+        }
+
+        // Ctrl/Cmd + Shift + I - Import presets
+        if (modifierKey && e.shiftKey && e.key === 'I') {
+          e.preventDefault();
+          importPresets();
+          return;
+        }
+
+        // Ctrl/Cmd + Shift + R - Reset metrics
+        if (modifierKey && e.shiftKey && e.key === 'R') {
+          e.preventDefault();
+          if (confirm('Reset all metrics? This cannot be undone.')) {
+            resetMetrics();
+          }
+          return;
+        }
+      }
+
+      // Ctrl/Cmd + , - Open settings (works globally)
+      if (modifierKey && e.key === ',') {
+        e.preventDefault();
+        if (!isOpen) {
+          // Trigger open via parent - we'll need to expose this
+          // For now, just log
+          console.log('Keyboard shortcut: Open settings panel');
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, showSavePresetDialog, presets, selectedPreset]);
+
+  if (!isOpen) {
+    return null;
+  }
+
+  const localHandlingPercentage = metrics && metrics.totalQueries > 0
+    ? (metrics.localHandled / metrics.totalQueries * 100).toFixed(1)
+    : '0.0';
+
+  const avgCostPerQuery = metrics && metrics.totalQueries > 0
+    ? (metrics.totalCost / metrics.totalQueries)
+    : 0;
+
+  return (
+    <div className="orchestration-settings-overlay" onClick={onClose}>
+      <div className="orchestration-settings-panel" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="settings-header">
+          <h2>🤖 Orchestration Settings</h2>
+          <button className="close-button" onClick={onClose} aria-label="Close settings">
+            ✕
+          </button>
+        </div>
+
+        <div className="settings-content">
+          {/* Preset Management */}
+          <section className="settings-section preset-section">
+            <div className="section-header">
+              <h3>🎨 Configuration Presets</h3>
+              <div className="header-buttons">
+                <button className="preset-button" onClick={() => setShowSavePresetDialog(true)} title="Save current settings as preset">
+                  💾 Save
+                </button>
+                <button className="preset-button" onClick={exportPresets} title="Export custom presets">
+                  📤 Export
+                </button>
+                <button className="preset-button" onClick={importPresets} title="Import presets">
+                  📥 Import
+                </button>
+              </div>
+            </div>
+            <p className="section-description">
+              Quick access to pre-configured settings for different use cases
+            </p>
+
+            <div className="preset-grid">
+              {presets.map((preset) => (
+                <div
+                  key={preset.name}
+                  className={`preset-card ${selectedPreset === preset.name ? 'selected' : ''}`}
+                  onClick={() => loadPreset(preset.name)}
+                >
+                  <div className="preset-header">
+                    <span className="preset-name">
+                      {preset.name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                    </span>
+                    {!preset.isDefault && (
+                      <button
+                        className="delete-preset-button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Delete preset "${preset.name}"?`)) {
+                            deletePreset(preset.name);
+                          }
+                        }}
+                        title="Delete preset"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                  <div className="preset-details">
+                    <div className="preset-badge">{preset.priority}</div>
+                    <div className="preset-badge">{preset.privacyLevel}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {showSavePresetDialog && (
+              <div className="save-preset-dialog">
+                <div className="dialog-content">
+                  <h4>Save Current Configuration</h4>
+                  <input
+                    type="text"
+                    placeholder="Enter preset name (e.g., My Custom Setup)"
+                    value={newPresetName}
+                    onChange={(e) => setNewPresetName(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && saveCurrentAsPreset()}
+                    autoFocus
+                  />
+                  <div className="dialog-buttons">
+                    <button className="dialog-button primary" onClick={saveCurrentAsPreset}>
+                      Save
+                    </button>
+                    <button className="dialog-button" onClick={() => {
+                      setShowSavePresetDialog(false);
+                      setNewPresetName('');
+                    }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* Priority Settings */}
+          <section className="settings-section">
+            <h3>⚖️ Routing Priority</h3>
+            <p className="section-description">
+              Choose what matters most for your queries
+            </p>
+
+            <div className="radio-group">
+              <label className={`radio-option ${priority === 'cost' ? 'selected' : ''}`}>
+                <input
+                  type="radio"
+                  name="priority"
+                  value="cost"
+                  checked={priority === 'cost'}
+                  onChange={(e) => setPriority(e.target.value as any)}
+                />
+                <div className="option-content">
+                  <span className="option-icon">💰</span>
+                  <div>
+                    <div className="option-title">Cost Optimized</div>
+                    <div className="option-desc">Maximize local execution, minimize cloud costs</div>
+                  </div>
+                </div>
+              </label>
+
+              <label className={`radio-option ${priority === 'quality' ? 'selected' : ''}`}>
+                <input
+                  type="radio"
+                  name="priority"
+                  value="quality"
+                  checked={priority === 'quality'}
+                  onChange={(e) => setPriority(e.target.value as any)}
+                />
+                <div className="option-content">
+                  <span className="option-icon">✨</span>
+                  <div>
+                    <div className="option-title">Quality Focused</div>
+                    <div className="option-desc">Prefer cloud models for better responses</div>
+                  </div>
+                </div>
+              </label>
+
+              <label className={`radio-option ${priority === 'latency' ? 'selected' : ''}`}>
+                <input
+                  type="radio"
+                  name="priority"
+                  value="latency"
+                  checked={priority === 'latency'}
+                  onChange={(e) => setPriority(e.target.value as any)}
+                />
+                <div className="option-content">
+                  <span className="option-icon">⚡</span>
+                  <div>
+                    <div className="option-title">Speed Focused</div>
+                    <div className="option-desc">Prioritize fast local responses</div>
+                  </div>
+                </div>
+              </label>
+
+              <label className={`radio-option ${priority === 'balanced' ? 'selected' : ''}`}>
+                <input
+                  type="radio"
+                  name="priority"
+                  value="balanced"
+                  checked={priority === 'balanced'}
+                  onChange={(e) => setPriority(e.target.value as any)}
+                />
+                <div className="option-content">
+                  <span className="option-icon">⚖️</span>
+                  <div>
+                    <div className="option-title">Balanced</div>
+                    <div className="option-desc">Smart balance of cost, quality, and speed</div>
+                  </div>
+                </div>
+              </label>
+            </div>
+          </section>
+
+          {/* Privacy Settings */}
+          <section className="settings-section">
+            <h3>🔒 Privacy Level</h3>
+            <p className="section-description">
+              Control how strictly PII is kept local
+            </p>
+
+            <div className="radio-group">
+              <label className={`radio-option ${privacyLevel === 'strict' ? 'selected' : ''}`}>
+                <input
+                  type="radio"
+                  name="privacyLevel"
+                  value="strict"
+                  checked={privacyLevel === 'strict'}
+                  onChange={(e) => setPrivacyLevel(e.target.value as any)}
+                />
+                <div className="option-content">
+                  <span className="option-icon">🔐</span>
+                  <div>
+                    <div className="option-title">Strict</div>
+                    <div className="option-desc">All queries stay local, zero cloud exposure</div>
+                  </div>
+                </div>
+              </label>
+
+              <label className={`radio-option ${privacyLevel === 'moderate' ? 'selected' : ''}`}>
+                <input
+                  type="radio"
+                  name="privacyLevel"
+                  value="moderate"
+                  checked={privacyLevel === 'moderate'}
+                  onChange={(e) => setPrivacyLevel(e.target.value as any)}
+                />
+                <div className="option-content">
+                  <span className="option-icon">🔒</span>
+                  <div>
+                    <div className="option-title">Moderate (Recommended)</div>
+                    <div className="option-desc">PII stays local, others can use cloud</div>
+                  </div>
+                </div>
+              </label>
+
+              <label className={`radio-option ${privacyLevel === 'relaxed' ? 'selected' : ''}`}>
+                <input
+                  type="radio"
+                  name="privacyLevel"
+                  value="relaxed"
+                  checked={privacyLevel === 'relaxed'}
+                  onChange={(e) => setPrivacyLevel(e.target.value as any)}
+                />
+                <div className="option-content">
+                  <span className="option-icon">🔓</span>
+                  <div>
+                    <div className="option-title">Relaxed</div>
+                    <div className="option-desc">Cloud with anonymization when needed</div>
+                  </div>
+                </div>
+              </label>
+            </div>
+          </section>
+
+          {/* Local Model Selection */}
+          <section className="settings-section local-model-section">
+            <h3>🤖 Local Model Selection</h3>
+            <p className="section-description">
+              Choose which local SLM to use for on-device inference
+            </p>
+
+            <div className="model-grid">
+              {availableModels.map((model) => (
+                <div
+                  key={model.id}
+                  className={`model-card ${currentSLM === model.id ? 'selected' : ''} ${!model.available ? 'unavailable' : ''}`}
+                  onClick={() => model.available && selectSLM(model.id)}
+                >
+                  <div className="model-header">
+                    <div className="model-name-section">
+                      <span className="model-name">{model.name}</span>
+                      <span className="model-size">{model.modelSize}</span>
+                    </div>
+                    {currentSLM === model.id && <span className="active-badge">✓ Active</span>}
+                  </div>
+
+                  <div className="model-description">{model.description}</div>
+
+                  <div className="model-specialization">
+                    <span className={`specialization-badge ${model.specialization}`}>
+                      {model.specialization === 'general' && '🎯 General'}
+                      {model.specialization === 'code' && '💻 Code'}
+                      {model.specialization === 'reasoning' && '🧠 Reasoning'}
+                      {model.specialization === 'lightweight' && '⚡ Lightweight'}
+                    </span>
+                  </div>
+
+                  <div className="model-stats">
+                    <div className="model-stat">
+                      <span className="stat-label">Latency</span>
+                      <span className="stat-value">{model.avgLatency}ms</span>
+                    </div>
+                    <div className="model-stat">
+                      <span className="stat-label">Context</span>
+                      <span className="stat-value">{(model.contextWindow / 1024).toFixed(0)}K</span>
+                    </div>
+                  </div>
+
+                  <div className="model-strengths">
+                    {model.strengths.slice(0, 2).map((strength, idx) => (
+                      <span key={idx} className="strength-tag">
+                        {strength}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="model-actions">
+                    {model.available ? (
+                      <>
+                        {currentSLM !== model.id && (
+                          <button
+                            className="model-action-button primary"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              selectSLM(model.id);
+                            }}
+                          >
+                            Switch to {model.name}
+                          </button>
+                        )}
+                        {model.id !== 'phi-3' && (
+                          <button
+                            className="model-action-button danger"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              uninstallSLM(model.id);
+                            }}
+                          >
+                            Uninstall
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <button
+                        className="model-action-button install"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          installSLM(model.id);
+                        }}
+                        disabled={installingModel === model.id}
+                      >
+                        {installingModel === model.id ? 'Installing...' : '📥 Install'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="model-info-hint">
+              💡 Tip: Choose CodeLlama for programming tasks, Llama-3 for complex reasoning, or Gemma for quick responses.
+            </div>
+          </section>
+
+          {/* Advanced Settings */}
+          <section className="settings-section">
+            <h3>🔧 Advanced Settings</h3>
+
+            <div className="slider-group">
+              <div className="slider-item">
+                <label htmlFor="maxCost">
+                  <span>Max Cost per Query</span>
+                  <span className="slider-value">${maxCostPerQuery.toFixed(3)}</span>
+                </label>
+                <input
+                  id="maxCost"
+                  type="range"
+                  min="0.001"
+                  max="0.050"
+                  step="0.001"
+                  value={maxCostPerQuery}
+                  onChange={(e) => setMaxCostPerQuery(parseFloat(e.target.value))}
+                />
+                <div className="slider-labels">
+                  <span>$0.001</span>
+                  <span>$0.050</span>
+                </div>
+              </div>
+
+              <div className="slider-item">
+                <label htmlFor="maxLatency">
+                  <span>Max Latency</span>
+                  <span className="slider-value">{(maxLatency / 1000).toFixed(1)}s</span>
+                </label>
+                <input
+                  id="maxLatency"
+                  type="range"
+                  min="500"
+                  max="10000"
+                  step="500"
+                  value={maxLatency}
+                  onChange={(e) => setMaxLatency(parseInt(e.target.value))}
+                />
+                <div className="slider-labels">
+                  <span>0.5s</span>
+                  <span>10s</span>
+                </div>
+              </div>
+
+              <div className="slider-item">
+                <label htmlFor="minConfidence">
+                  <span>Min Confidence for Local</span>
+                  <span className="slider-value">{(minConfidence * 100).toFixed(0)}%</span>
+                </label>
+                <input
+                  id="minConfidence"
+                  type="range"
+                  min="0.3"
+                  max="0.9"
+                  step="0.05"
+                  value={minConfidence}
+                  onChange={(e) => setMinConfidence(parseFloat(e.target.value))}
+                />
+                <div className="slider-labels">
+                  <span>30%</span>
+                  <span>90%</span>
+                </div>
+              </div>
+
+              <div className="toggle-item">
+                <label htmlFor="enableStreaming">
+                  <div className="toggle-label-content">
+                    <span className="toggle-title">⚡ Streaming Hybrid Execution</span>
+                    <span className="toggle-desc">
+                      Start with local model, switch to cloud mid-response if quality degrades
+                    </span>
+                  </div>
+                  <div className="toggle-switch">
+                    <input
+                      id="enableStreaming"
+                      type="checkbox"
+                      checked={enableStreaming}
+                      onChange={(e) => setEnableStreaming(e.target.checked)}
+                    />
+                    <span className="toggle-slider"></span>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </section>
+
+          {/* Metrics Display */}
+          <section className="settings-section metrics-section">
+            <div className="section-header">
+              <h3>📊 Performance Metrics</h3>
+              <div className="header-buttons">
+                <button className="export-button" onClick={exportMetricsJSON} title="Export as JSON">
+                  📥 JSON
+                </button>
+                <button className="export-button" onClick={exportMetricsCSV} title="Export as CSV">
+                  📥 CSV
+                </button>
+                <button className="reset-button" onClick={resetMetrics}>
+                  Reset
+                </button>
+              </div>
+            </div>
+
+            {metrics ? (
+              <div className="metrics-grid">
+                <div className="metric-card">
+                  <div className="metric-icon">🎯</div>
+                  <div className="metric-content">
+                    <div className="metric-value">{localHandlingPercentage}%</div>
+                    <div className="metric-label">Local Handling</div>
+                    {historicalData?.hourly?.localHandlingTrend && historicalData.hourly.localHandlingTrend.length > 1 && (
+                      <div className="metric-sparkline">
+                        <Sparkline
+                          data={historicalData.hourly.localHandlingTrend}
+                          width={100}
+                          height={20}
+                          strokeWidth={2}
+                          color="#4caf50"
+                          fillColor="rgba(76, 175, 80, 0.1)"
+                        />
+                        <TrendIndicator
+                          value={historicalData.hourly.localHandlingGrowth || 0}
+                          className="metric-trend"
+                        />
+                      </div>
+                    )}
+                    <div className="metric-target">Target: 80%+</div>
+                  </div>
+                </div>
+
+                <div className="metric-card">
+                  <div className="metric-icon">⚡</div>
+                  <div className="metric-content">
+                    <div className="metric-value">{metrics.averageLatency.toFixed(0)}ms</div>
+                    <div className="metric-label">Avg Latency</div>
+                    {historicalData?.hourly?.avgLatencyTrend && historicalData.hourly.avgLatencyTrend.length > 1 && (
+                      <div className="metric-sparkline">
+                        <Sparkline
+                          data={historicalData.hourly.avgLatencyTrend}
+                          width={100}
+                          height={20}
+                          strokeWidth={2}
+                          color="#2196f3"
+                          fillColor="rgba(33, 150, 243, 0.1)"
+                        />
+                        <TrendIndicator
+                          value={-(historicalData.hourly.avgLatencyGrowth || 0)}
+                          className="metric-trend"
+                        />
+                      </div>
+                    )}
+                    <div className="metric-target">Target: &lt;800ms</div>
+                  </div>
+                </div>
+
+                <div className="metric-card">
+                  <div className="metric-icon">💰</div>
+                  <div className="metric-content">
+                    <div className="metric-value">${avgCostPerQuery.toFixed(4)}</div>
+                    <div className="metric-label">Avg Cost</div>
+                    {historicalData?.hourly?.avgCostTrend && historicalData.hourly.avgCostTrend.length > 1 && (
+                      <div className="metric-sparkline">
+                        <Sparkline
+                          data={historicalData.hourly.avgCostTrend}
+                          width={100}
+                          height={20}
+                          strokeWidth={2}
+                          color="#ff9800"
+                          fillColor="rgba(255, 152, 0, 0.1)"
+                        />
+                        <TrendIndicator
+                          value={-(historicalData.hourly.avgCostGrowth || 0)}
+                          className="metric-trend"
+                        />
+                      </div>
+                    )}
+                    <div className="metric-target">Target: &lt;$0.001</div>
+                  </div>
+                </div>
+
+                <div className="metric-card">
+                  <div className="metric-icon">📈</div>
+                  <div className="metric-content">
+                    <div className="metric-value">{metrics.totalQueries}</div>
+                    <div className="metric-label">Total Queries</div>
+                    {historicalData?.hourly?.totalQueriesTrend && historicalData.hourly.totalQueriesTrend.length > 1 && (
+                      <div className="metric-sparkline">
+                        <Sparkline
+                          data={historicalData.hourly.totalQueriesTrend}
+                          width={100}
+                          height={20}
+                          strokeWidth={2}
+                          color="#9c27b0"
+                          fillColor="rgba(156, 39, 176, 0.1)"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="metric-card">
+                  <div className="metric-icon">🔄</div>
+                  <div className="metric-content">
+                    <div className="metric-value">{metrics.escalations}</div>
+                    <div className="metric-label">Escalations</div>
+                    <div className="metric-sublabel">
+                      {metrics.totalQueries > 0
+                        ? `${(metrics.escalations / metrics.totalQueries * 100).toFixed(1)}%`
+                        : '0%'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="metric-card">
+                  <div className="metric-icon">✅</div>
+                  <div className="metric-content">
+                    <div className="metric-value">
+                      {(metrics.qualityGatePassRate * 100).toFixed(0)}%
+                    </div>
+                    <div className="metric-label">Quality Pass Rate</div>
+                    {historicalData?.hourly?.qualityPassRateTrend && historicalData.hourly.qualityPassRateTrend.length > 1 && (
+                      <div className="metric-sparkline">
+                        <Sparkline
+                          data={historicalData.hourly.qualityPassRateTrend}
+                          width={100}
+                          height={20}
+                          strokeWidth={2}
+                          color="#4caf50"
+                          fillColor="rgba(76, 175, 80, 0.1)"
+                        />
+                        <TrendIndicator
+                          value={historicalData.hourly.qualityPassRateGrowth || 0}
+                          className="metric-trend"
+                        />
+                      </div>
+                    )}
+                    <div className="metric-target">Target: ≥70%</div>
+                  </div>
+                </div>
+
+                <div className="metric-card">
+                  <div className="metric-icon">💾</div>
+                  <div className="metric-content">
+                    <div className="metric-value">
+                      {(metrics.cacheHitRate * 100).toFixed(0)}%
+                    </div>
+                    <div className="metric-label">Cache Hit Rate</div>
+                  </div>
+                </div>
+
+                <div className="metric-card">
+                  <div className="metric-icon">🎲</div>
+                  <div className="metric-content">
+                    <div className="metric-value">
+                      {(metrics.averageConfidence * 100).toFixed(0)}%
+                    </div>
+                    <div className="metric-label">Avg Confidence</div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="metrics-loading">
+                <p>No metrics available yet. Start chatting to see orchestration statistics!</p>
+              </div>
+            )}
+
+            {metrics && metrics.totalQueries > 0 && (
+              <div className="metrics-breakdown">
+                <h4>Strategy Breakdown</h4>
+                <div className="breakdown-bars">
+                  <div className="breakdown-item">
+                    <span className="breakdown-label">Local</span>
+                    <div className="breakdown-bar">
+                      <div
+                        className="breakdown-fill local"
+                        style={{ width: `${(metrics.localHandled / metrics.totalQueries * 100).toFixed(1)}%` }}
+                      ></div>
+                    </div>
+                    <span className="breakdown-value">{metrics.localHandled}</span>
+                  </div>
+                  <div className="breakdown-item">
+                    <span className="breakdown-label">Delegate</span>
+                    <div className="breakdown-bar">
+                      <div
+                        className="breakdown-fill delegate"
+                        style={{ width: `${(metrics.delegated / metrics.totalQueries * 100).toFixed(1)}%` }}
+                      ></div>
+                    </div>
+                    <span className="breakdown-value">{metrics.delegated}</span>
+                  </div>
+                  <div className="breakdown-item">
+                    <span className="breakdown-label">Hybrid</span>
+                    <div className="breakdown-bar">
+                      <div
+                        className="breakdown-fill hybrid"
+                        style={{ width: `${(metrics.hybrid / metrics.totalQueries * 100).toFixed(1)}%` }}
+                      ></div>
+                    </div>
+                    <span className="breakdown-value">{metrics.hybrid}</span>
+                  </div>
+                  <div className="breakdown-item">
+                    <span className="breakdown-label">Iterative</span>
+                    <div className="breakdown-bar">
+                      <div
+                        className="breakdown-fill iterative"
+                        style={{ width: `${(metrics.iterative / metrics.totalQueries * 100).toFixed(1)}%` }}
+                      ></div>
+                    </div>
+                    <span className="breakdown-value">{metrics.iterative}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* A/B Testing Section */}
+          <section className="settings-section ab-testing-section">
+            <div className="section-header">
+              <h3>🧪 A/B Testing</h3>
+              <div className="header-buttons">
+                {currentTest && currentTest.status === 'running' && (
+                  <>
+                    <button className="ab-test-button" onClick={exportABTestResults} title="Export results">
+                      📥 Export
+                    </button>
+                    <button className="ab-test-button stop" onClick={stopABTest} title="Stop test">
+                      ⏹️ Stop Test
+                    </button>
+                  </>
+                )}
+                {(!currentTest || currentTest.status === 'completed') && (
+                  <button className="ab-test-button start" onClick={startQuickABTest} title="Start quick A/B test">
+                    ▶️ Start Quick Test
+                  </button>
+                )}
+              </div>
+            </div>
+            <p className="section-description">
+              Compare configurations side-by-side to find the optimal settings
+            </p>
+
+            {currentTest ? (
+              <div className="ab-test-container">
+                <div className="ab-test-info">
+                  <div className="ab-test-status">
+                    <span className={`status-badge ${currentTest.status}`}>
+                      {currentTest.status === 'running' ? '🟢 Running' :
+                       currentTest.status === 'paused' ? '🟡 Paused' : '⚫ Completed'}
+                    </span>
+                    <span className="ab-test-name">{currentTest.name}</span>
+                  </div>
+                  <div className="ab-test-description">{currentTest.description}</div>
+                </div>
+
+                <div className="ab-test-results">
+                  <table className="variants-table">
+                    <thead>
+                      <tr>
+                        <th>Variant</th>
+                        <th>Queries</th>
+                        <th>Latency</th>
+                        <th>Cost</th>
+                        <th>Quality</th>
+                        <th>Improvement</th>
+                        <th>Confidence</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.from(currentTest.results.values()).map((result) => (
+                        <tr key={result.variantId} className={result.isWinner ? 'winner' : ''}>
+                          <td>
+                            {result.variantName}
+                            {result.isWinner && <span className="winner-badge">🏆 Winner</span>}
+                            {currentTest.variants.find(v => v.id === result.variantId)?.isControl &&
+                             <span className="control-badge">Control</span>}
+                          </td>
+                          <td>{result.metrics.totalQueries}</td>
+                          <td>{result.metrics.averageLatency.toFixed(0)}ms</td>
+                          <td>${result.metrics.averageCost.toFixed(4)}</td>
+                          <td>{(result.metrics.averageQuality * 100).toFixed(0)}%</td>
+                          <td>
+                            {!currentTest.variants.find(v => v.id === result.variantId)?.isControl && (
+                              <div className="improvements">
+                                <div className={result.improvement.cost > 0 ? 'positive' : 'negative'}>
+                                  Cost: {result.improvement.cost > 0 ? '+' : ''}{result.improvement.cost.toFixed(1)}%
+                                </div>
+                                <div className={result.improvement.latency > 0 ? 'positive' : 'negative'}>
+                                  Speed: {result.improvement.latency > 0 ? '+' : ''}{result.improvement.latency.toFixed(1)}%
+                                </div>
+                                <div className={result.improvement.quality > 0 ? 'positive' : 'negative'}>
+                                  Quality: {result.improvement.quality > 0 ? '+' : ''}{result.improvement.quality.toFixed(1)}%
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            <div className="confidence-bar">
+                              <div
+                                className="confidence-fill"
+                                style={{ width: `${(result.confidence * 100).toFixed(0)}%` }}
+                              ></div>
+                              <span className="confidence-text">{(result.confidence * 100).toFixed(0)}%</span>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  {currentTest.status === 'running' && (
+                    <div className="ab-test-hint">
+                      💡 Traffic is being split {currentTest.variants.map(v => `${(v.trafficAllocation * 100).toFixed(0)}%`).join('/')} between variants.
+                      Minimum {currentTest.minimumSampleSize} samples needed per variant for significance.
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="ab-test-empty">
+                <p>No active A/B test. Start a quick test to compare your current configuration with a preset.</p>
+                <p className="ab-test-benefits">
+                  ✓ Statistical significance testing<br/>
+                  ✓ Side-by-side metrics comparison<br/>
+                  ✓ Automatic winner detection<br/>
+                  ✓ Export results for analysis
+                </p>
+              </div>
+            )}
+          </section>
+
+          {/* Info Section */}
+          <section className="settings-section info-section">
+            <h3>ℹ️ About Hybrid-First Orchestration</h3>
+            <p>
+              The local SLM (Phi-3) intelligently decides whether to handle queries locally
+              or delegate to cloud models. This optimizes for privacy, cost, and speed while
+              maintaining quality through automatic validation and escalation.
+            </p>
+            <ul className="info-list">
+              <li>🔒 <strong>Privacy-First:</strong> PII stays on your device</li>
+              <li>💰 <strong>Cost-Optimized:</strong> 80%+ queries handled locally (free)</li>
+              <li>⚡ <strong>Fast:</strong> Local responses in &lt;300ms</li>
+              <li>✅ <strong>Quality Gates:</strong> Automatic cloud escalation when needed</li>
+            </ul>
+          </section>
+
+          {/* Keyboard Shortcuts */}
+          <section className="settings-section keyboard-shortcuts-section">
+            <h3>⌨️ Keyboard Shortcuts</h3>
+            <div className="shortcuts-grid">
+              <div className="shortcut-item">
+                <kbd className="kbd">Esc</kbd>
+                <span>Close panel/dialog</span>
+              </div>
+              <div className="shortcut-item">
+                <kbd className="kbd">1</kbd>-<kbd className="kbd">5</kbd>
+                <span>Quick load preset</span>
+              </div>
+              <div className="shortcut-item">
+                <kbd className="kbd">Ctrl</kbd>+<kbd className="kbd">Shift</kbd>+<kbd className="kbd">E</kbd>
+                <span>Export metrics</span>
+              </div>
+              <div className="shortcut-item">
+                <kbd className="kbd">Ctrl</kbd>+<kbd className="kbd">Shift</kbd>+<kbd className="kbd">S</kbd>
+                <span>Save preset</span>
+              </div>
+              <div className="shortcut-item">
+                <kbd className="kbd">Ctrl</kbd>+<kbd className="kbd">Shift</kbd>+<kbd className="kbd">I</kbd>
+                <span>Import presets</span>
+              </div>
+              <div className="shortcut-item">
+                <kbd className="kbd">Ctrl</kbd>+<kbd className="kbd">Shift</kbd>+<kbd className="kbd">R</kbd>
+                <span>Reset metrics</span>
+              </div>
+            </div>
+            <p className="shortcuts-note">
+              💡 Use <kbd className="kbd">Cmd</kbd> instead of <kbd className="kbd">Ctrl</kbd> on Mac
+            </p>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
